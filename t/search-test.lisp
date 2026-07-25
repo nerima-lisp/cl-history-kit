@@ -45,6 +45,23 @@
     (expect (history-search (searchable-history) "GIT" :smartcase nil :case-sensitive nil)
             :to-have-texts '("git push" "Git log" "git commit"))))
 
+(describe "limiting results"
+  (it "truncates to the newest matches when the limit is smaller than the match count"
+    (expect (history-search (searchable-history) "git " :limit 2)
+            :to-have-texts '("git push" "Git log")))
+
+  (it "returns everything unchanged when the limit equals the match count"
+    (expect (history-search (searchable-history) "git " :limit 3)
+            :to-have-texts '("git push" "Git log" "git commit")))
+
+  (it "returns everything unchanged when the limit exceeds the match count"
+    (expect (history-search (searchable-history) "git " :limit 100)
+            :to-have-texts '("git push" "Git log" "git commit")))
+
+  (it "returns everything when the limit is NIL"
+    (expect (history-search (searchable-history) "git " :limit nil)
+            :to-have-texts '("git push" "Git log" "git commit"))))
+
 (describe "single-entry matching"
   (it "answers each mode for one entry"
     (let ((entry (make-history-entry "git commit -m x")))

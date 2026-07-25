@@ -17,16 +17,16 @@ host tracks no exit status (a bare input prompt) or has not produced one yet."
   (timestamp 0 :type integer :read-only t)
   (exit-code nil :type (or null integer) :read-only t))
 
-(defun make-history-entry (text &key (timestamp (get-universal-time)) exit-code)
-  "Create an entry recording TEXT.
+(define-checked-function make-history-entry (text &key (timestamp (get-universal-time)) exit-code)
+    "Create an entry recording TEXT.
 
 TIMESTAMP defaults to the current universal time; pass it explicitly to replay
 a persisted entry without restamping it.  EXIT-CODE is an integer or NIL.
 TEXT is copied, so a caller may keep filling an adjustable input buffer after
 recording it without corrupting the entry."
-  (check-type text string)
-  (check-type timestamp integer)
-  (check-type exit-code (or null integer))
+    ((text string)
+     (timestamp integer)
+     (exit-code (or null integer)))
   (%make-history-entry (copy-seq text) timestamp exit-code))
 
 (defun history-entry-texts (entries)

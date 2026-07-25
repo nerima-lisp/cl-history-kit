@@ -10,6 +10,13 @@
       (expect (history-capacity history) :to-be 10000)
       (expect (history-duplicate-policy history) :to-be :remove)))
 
+  (it "reports itself non-empty once something is recorded, and empty again after a clear"
+    (let ((history (history-of '("ls"))))
+      (expect (history-empty-p history) :to-be-falsy)
+      (expect (history-count history) :to-be 1)
+      (history-clear history)
+      (expect (history-empty-p history) :to-be-truthy)))
+
   (it "drops the oldest entries once capacity is reached"
     (let ((history (history-of '("d" "c" "b" "a") :capacity 2)))
       (expect history :to-record-texts '("d" "c"))

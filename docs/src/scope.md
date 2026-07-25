@@ -6,7 +6,7 @@ The in-memory store, its operations, search, and the recall cursor — the parts
 that are identical across every program that keeps a history, and that are
 worth getting right once.
 
-## Out of scope for 0.1.0
+## Out of scope
 
 ### Persistence
 
@@ -87,7 +87,49 @@ These are not planned at any version:
 
 ## Stability
 
-0.1.0 is a first release. The API described here is what the library's known
-consumers need, but it has not yet been through a second consumer's
-integration, so a 0.2.0 may still rename or re-shape parts of it. Breaking
-changes will be listed in the [changelog](changelog.md).
+As of **1.0.0**, this library follows [Semantic Versioning](https://semver.org/)
+and its public API is frozen. That commitment was earned rather than declared:
+the API grew through 0.2.0, 0.3.0 and 0.4.0 by addition only — every new
+capability (mode-aware navigation, wraparound, explicit case sensitivity on the
+cursor, `history-dedup`, `history-delete-if`, `history-search`'s `:limit`)
+landed as a new keyword or a new function, and no export has ever been renamed
+or removed.
+
+### What the promise covers
+
+Within the 1.x series, none of the following will change except additively:
+
+- The set of symbols exported from `history-kit`, and each one's name.
+- Each function's lambda list: no existing parameter is removed, reordered, or
+  given a different default. New behaviour arrives as a new keyword argument
+  with a default preserving today's behaviour, or as a new function.
+- The documented behaviour of every function, including its return
+  *convention* — `nil` for "nothing happened", a count for the purge
+  operations, two values from `history-add` — and the conditions under which
+  navigation resets.
+- Structure types `history` and `history-entry` remaining structure types with
+  their current predicates and readers.
+
+### What it does not cover
+
+These are implementation detail, and may change in any 1.x release:
+
+- Every `%`-prefixed internal symbol. They are unexported, undocumented and
+  deliberately unstable; a caller reaching into them is not using the public
+  API. This includes the `history` struct's slots, whose accessors live behind
+  the private `%history-` conc-name precisely so the cursor invariants cannot
+  be violated from outside.
+- The identity of returned lists beyond what is documented. `history-entries`
+  and `history-search` return fresh lists whose *entries* are shared, which is
+  safe only because entries are immutable; nothing promises the list returned
+  by two separate calls is `eq`, or that it is safe to destructively modify.
+- The exact condition class and report string of a signalled error, beyond
+  "a `type-error` for a wrong-typed argument, an `ecase` failure for an
+  unknown mode" — see [Error Handling](error-handling.md). Notably, `ecase`'s
+  `case-failure` is a `type-error` subtype on most implementations but is not
+  required by the standard to be one.
+- Performance characteristics, except where a docstring states a complexity
+  (as `history-merge`'s and `history-search`'s `:limit` do).
+
+A breaking change to anything in the first list means 2.0.0, and will be called
+out explicitly in the [changelog](changelog.md).

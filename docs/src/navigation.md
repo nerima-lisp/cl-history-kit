@@ -3,7 +3,8 @@
 This is the cursor an ++arrow-up++ / ++arrow-down++ key pair drives.
 
 ```lisp
-(history-kit:history-previous history current-input)
+(history-kit:history-previous history current-input
+  &key (mode :line-prefix) (wrap nil) case-sensitive (smartcase t))
 (history-kit:history-next history)
 (history-kit:history-navigating-p history)
 (history-kit:history-reset-navigation history)
@@ -77,6 +78,71 @@ The filter is matched **line-prefix** under **smartcase**:
 
 An empty filter matches everything, which is why passing `""` walks the whole
 history.
+
+## Choosing a match mode
+
+`history-previous` accepts the same four modes as [`history-search`](search.md#modes)
+through `:mode`, defaulting to `:line-prefix` for a plain Up/Down key pair.
+Like `current-input`, `mode` matters only on the first call of a walk:
+
+```lisp
+(defparameter *mixed-modes*
+  (let ((history (history-kit:make-history)))
+    (dolist (text '("git push" "ls" "git commit") history)
+      (history-kit:history-add history text))))
+
+;; A Ctrl-R-style incremental search: :CONTAINS over the same cursor a plain
+;; Up/Down pair uses, no separate search state to keep in sync.
+(history-kit:history-previous *mixed-modes* "s" :mode :contains) ; => "git push"
+(history-kit:history-previous *mixed-modes* "s" :mode :contains) ; => "ls"
+```
+
+An unknown mode signals the same error `history-search` does. Because the mode
+is frozen alongside the filter, a host can bind `:mode :line-prefix` to
+++arrow-up++ / ++arrow-down++ and `:mode :contains` to ++ctrl+r++ without
+maintaining two cursors or two copies of the matching logic.
+
+## Wraparound
+
+`history-previous` and `history-next` also accept `&key (wrap nil)`, frozen on
+the first call of a walk exactly like `mode` and `current-input`. With the
+default `wrap nil`, reaching either end stops the walk there: `history-previous`
+returns `nil` at the oldest match, and `history-next` restores the origin at
+the newest match, as described above and below. With `wrap t`, both ends
+instead cycle to the other one:
+
+```lisp
+(defparameter *wrap-history*
+  (let ((history (history-kit:make-history)))
+    (dolist (text '("git status" "git commit" "ls -la") history)
+      (history-kit:history-add history text))))
+;; newest first: ("ls -la" "git commit" "git status")
+
+(history-kit:history-previous *wrap-history* "git" :wrap t)  ; => "git commit"
+(history-kit:history-previous *wrap-history* "git")          ; => "git status"
+(history-kit:history-previous *wrap-history* "git")          ; => "git commit" -- past the oldest match, wraps to the newest
+(history-kit:history-next *wrap-history*)                     ; => "git status" -- past the newest match, wraps to the oldest
+(history-kit:history-next *wrap-history*)                     ; => "git commit"
+(history-kit:history-navigating-p *wrap-history*)            ; => T
+```
+
+Wraparound and origin-restore are mutually exclusive per walk: once `wrap` is
+frozen `t`, neither `history-previous` nor `history-next` ever ends the walk on
+their own, no matter how many times either is called. The only ways out of a
+wrapping walk are calling `history-reset-navigation` explicitly, or any
+operation that already resets navigation unconditionally -- `history-add`,
+`history-clear`, or a `history-delete` that removed something (see the table
+under [Ending a walk](#ending-a-walk)).
+
+## Case sensitivity
+
+`case-sensitive` and `smartcase` are frozen on the first call exactly like
+`mode` and `wrap`, and work identically to
+[`history-search`'s](search.md#smartcase): `smartcase` defaults to `t` and
+derives sensitivity from `current-input` itself -- a lower-case filter matches
+loosely, one with an upper-case character matches exactly -- overriding
+`case-sensitive`. Pass `:smartcase nil` to control sensitivity explicitly
+through `case-sensitive` instead, the same override `history-search` accepts.
 
 ## Walking forward
 

@@ -15,21 +15,27 @@
     | --- | --- |
     | `packages.<system>.cl-history-kit` | The ASDF system, built with SBCL |
     | `packages.<system>.docs` | This documentation site, built offline |
+    | `packages.<system>.coverage` | The `sb-cover` report for `src/` |
     | `devShells.<system>.default` | SBCL with the source registry pre-set |
     | `checks.<system>.default` | The SBCL test suite |
     | `checks.<system>.formatting` | The treefmt (nixfmt) gate |
     | `apps.<system>.test` | `nix run .#test` — the suite on its own |
+    | `apps.<system>.coverage` | `nix run .#coverage` — the report into a temp directory |
 
-    To depend on it from another flake:
+    To depend on it from another flake, pinned to a release tag:
 
     ```nix
     {
       inputs.cl-history-kit = {
-        url = "github:nerima-lisp/cl-history-kit";
+        url = "github:nerima-lisp/cl-history-kit/v1.0.0";
         inputs.nixpkgs.follows = "nixpkgs";
       };
     }
     ```
+
+    Dropping the `/v1.0.0` tracks the default branch instead. Since 1.0.0 the
+    public API is frozen for the 1.x series — see
+    [Stability](scope.md#stability) — so a `v1` tag range is safe to follow.
 
 === "ASDF"
 
@@ -63,9 +69,10 @@ The library is portable Common Lisp: standard sequence, string, and hash-table
 operations only, with no implementation-specific code and no feature
 conditionals.
 
-CI builds and tests SBCL on `x86_64-linux`, so that is the combination with a
-continuous guarantee. The flake declares only that system rather than
-advertising platforms it does not verify.
+CI builds and tests SBCL on `x86_64-linux` and `aarch64-darwin`, so those are
+the combinations with a continuous guarantee, and they are exactly the systems
+the flake declares — it never advertises a platform it does not verify. Other
+implementations and platforms are expected to work, but are not gated on.
 
 ## Verifying the installation
 

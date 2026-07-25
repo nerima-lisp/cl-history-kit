@@ -1,7 +1,11 @@
 # API Reference
 
 Every symbol below is exported from the `history-kit` package. Nothing else is
-public; internal helpers carry a leading `%` and stay unexported.
+public; internal helpers carry a leading `%` and stay unexported. This surface
+is frozen for the 1.x series — see [Stability](scope.md#stability).
+
+Parameters listed as `boolean` below are *generalized* booleans in the Common
+Lisp sense: any non-`nil` value counts as true.
 
 ## Types
 
@@ -155,6 +159,33 @@ Delete every entry whose text equals `text`. `case-sensitive` defaults to
 **true** (unlike search, which uses smartcase). Returns the number deleted;
 navigation resets only when that count is non-zero.
 
+### `history-delete-if`
+
+```lisp
+(history-delete-if history predicate) → integer
+```
+
+Delete every entry for which `predicate`, called with the `history-entry`
+object itself rather than merely its text, returns true -- for example purging
+failed commands via `history-entry-exit-code`, or everything older than some
+universal time via `history-entry-timestamp`. The predicate-based counterpart
+to `history-delete`, which only matches by exact text. Returns the number
+deleted; navigation resets only when that count is non-zero.
+
+### `history-dedup`
+
+```lisp
+(history-dedup history) → integer
+```
+
+Compact `history` in place, keeping each distinct text's newest occurrence and
+removing the rest, under the same case-sensitive comparison `history-add` uses
+at add-time under the `:remove` duplicate policy. Works regardless of
+`history`'s `:duplicate-policy` -- that policy only governs what `history-add`
+does going forward, whereas this is an explicit, on-demand purge of whatever is
+currently stored. Returns the number of entries removed; navigation resets only
+when that count is non-zero.
+
 ### `history-merge`
 
 ```lisp
@@ -172,7 +203,7 @@ original timestamp and exit code. Signals `type-error` for any other `source`.
 ### `history-search`
 
 ```lisp
-(history-search history query &key mode case-sensitive smartcase) → list of entry
+(history-search history query &key mode case-sensitive smartcase limit) → list of entry
 ```
 
 | Parameter | Type | Default | Meaning |
@@ -181,9 +212,11 @@ original timestamp and exit code. Signals `type-error` for any other `source`.
 | `mode` | `:prefix`, `:exact`, `:contains`, `:line-prefix` | `:prefix` | See [Search](search.md#modes) |
 | `smartcase` | boolean | `t` | Derive sensitivity from `query`; overrides `case-sensitive` |
 | `case-sensitive` | boolean | `nil` | Used only when `smartcase` is `nil` |
+| `limit` | `(integer 0 *)` or `nil` | `nil` | Cap the result to at most this many of the newest matches |
 
-Returns matching entries newest first, as a fresh list. An unknown `mode`
-signals an `ecase` failure.
+Returns matching entries newest first, as a fresh list, truncated to `limit`
+entries when `limit` is non-`nil`. An unknown `mode` signals an `ecase`
+failure; a non-`nil` `limit` outside `(integer 0 *)` signals `type-error`.
 
 ### `history-entry-match-p`
 
@@ -211,15 +244,29 @@ line is exactly `query`; the two are deliberately distinguishable.
 ### `history-previous`
 
 ```lisp
-(history-previous history current-input) → string or nil
+(history-previous history current-input &key mode wrap case-sensitive smartcase) → string or nil
 ```
 
+| Parameter | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `current-input` | `string` | — | The buffer; becomes the walk's filter and origin on the first call |
+| `mode` | `:prefix`, `:exact`, `:contains`, `:line-prefix` | `:line-prefix` | The walk's match mode, one of `history-search`'s four |
+| `wrap` | boolean | `nil` | Whether either end of the walk cycles to the other instead of stopping there |
+| `smartcase` | boolean | `t` | Derive sensitivity from `current-input`; overrides `case-sensitive` |
+| `case-sensitive` | boolean | `nil` | Used only when `smartcase` is `nil` |
+
 Step one match further back and return its text, or `nil` when there is no
-older match (leaving the cursor where it was).
+older match (leaving the cursor where it was) -- unless `wrap` was frozen `t`
+for this walk and at least one match exists anywhere in `history`, in which
+case it wraps around to the newest match instead of returning `nil`.
 
 On the first call of a walk, `current-input` becomes both the filter for the
-whole walk and the origin restored by `history-next`. Later calls ignore it.
-Matching is line-prefix under smartcase.
+whole walk and the origin restored by `history-next`, `mode` becomes the
+walk's match mode, `wrap` decides whether either end cycles to the other
+instead of ending the walk, and case sensitivity is decided exactly as
+`history-search` decides it, from `smartcase`/`case-sensitive`. Later calls
+ignore all four keyword arguments, along with `current-input` itself. An
+unknown `mode` signals the same `ecase` failure as `history-search`.
 
 ### `history-next`
 
@@ -228,8 +275,9 @@ Matching is line-prefix under smartcase.
 ```
 
 Step one match toward the newest end. Stepping past the newest match ends the
-walk and returns the preserved origin. Returns `nil` when no walk is in
-progress.
+walk and returns the preserved origin -- unless `wrap` was frozen `t` when the
+walk began (see `history-previous`), in which case it wraps around to the
+oldest match and continues instead. Returns `nil` when no walk is in progress.
 
 ### `history-navigating-p`
 
@@ -256,7 +304,9 @@ Abandon any active walk.
 | `history-capacity` | function | [Store](store.md#reading-a-store) |
 | `history-clear` | function | [Store](store.md#removing) |
 | `history-count` | function | [Store](store.md#reading-a-store) |
+| `history-dedup` | function | [Store](store.md#removing) |
 | `history-delete` | function | [Store](store.md#removing) |
+| `history-delete-if` | function | [Store](store.md#removing) |
 | `history-duplicate-policy` | function | [Store](store.md#reading-a-store) |
 | `history-empty-p` | function | [Store](store.md#reading-a-store) |
 | `history-entries` | function | [Store](store.md#reading-a-store) |

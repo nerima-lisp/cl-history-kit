@@ -5,7 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
     cl-weave = {
-      url = "github:nerima-lisp/cl-weave/v0.10.0";
+      url = "github:nerima-lisp/cl-weave/v1.0.0";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -24,13 +24,24 @@
       ...
     }:
     let
-      # CI builds and tests only x86_64-linux, so that is the sole declared
-      # system: the flake never advertises a platform it does not verify.
+      # Every declared system is verified: ci.yml runs `nix flake check` --
+      # the SBCL suite plus the formatting gate -- once per entry here, on a
+      # runner of that platform. The flake never advertises a platform CI does
+      # not build and test, so adding one means adding the matching CI matrix
+      # entry in the same change.
       systems = [
         "x86_64-linux"
+        "aarch64-darwin"
       ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
       sourceRegistry = "${cl-weave}//:${self}//";
+
+      # Declared once and shared by every derivation below, so cutting a
+      # release cannot leave the flake's three package versions disagreeing
+      # with each other. It must still be kept in step with the two :VERSION
+      # forms in cl-history-kit.asd -- see docs/src/contributing.md's
+      # "Cutting a release".
+      version = "1.0.0";
 
       # treefmt drives `nix fmt` and the `checks.<system>.formatting` gate.
       # Scope is Nix only: nixfmt (RFC-style) is a zero-footgun, low-diff
@@ -54,7 +65,7 @@
         rec {
           cl-history-kit = pkgs.sbcl.buildASDFSystem {
             pname = "cl-history-kit";
-            version = "0.1.0";
+            inherit version;
             src = self;
             systems = [ "cl-history-kit" ];
           };
@@ -66,7 +77,7 @@
           # promotes broken links and unlisted pages to build failures.
           docs = pkgs.stdenvNoCC.mkDerivation {
             pname = "cl-history-kit-docs";
-            version = "0.1.0";
+            inherit version;
             src = pkgs.lib.fileset.toSource {
               root = ./docs;
               fileset = pkgs.lib.fileset.unions [
@@ -83,6 +94,35 @@
             dontInstall = true;
             meta = {
               description = "Rendered MkDocs (Material) documentation for cl-history-kit";
+              homepage = "https://github.com/nerima-lisp/cl-history-kit";
+              license = pkgs.lib.licenses.mit;
+            };
+          };
+
+          # sb-cover / cl-weave branch-and-expression coverage report for
+          # src/, reproducing what `coverage.lisp` does locally as a buildable
+          # artifact. Not wired into `checks`: the raw expression percentage
+          # cannot reach 100 for reasons documented in
+          # docs/src/contributing.md's "Coverage" section (IN-PACKAGE forms,
+          # DEFSTRUCT slot options, and DEFMACRO bodies are not independently
+          # steppable), so gating on that number would be a false signal
+          # rather than a real regression check.
+          coverage = pkgs.stdenvNoCC.mkDerivation {
+            pname = "cl-history-kit-coverage";
+            inherit version;
+            src = self;
+            nativeBuildInputs = [ pkgs.sbcl ];
+            CL_SOURCE_REGISTRY = sourceRegistry;
+            buildPhase = ''
+              runHook preBuild
+              export HOME="$TMPDIR/home"
+              mkdir -p "$HOME" "$out"
+              timeout 120 sbcl --script ${self}/coverage.lisp "$out"
+              runHook postBuild
+            '';
+            dontInstall = true;
+            meta = {
+              description = "sb-cover / cl-weave coverage report for cl-history-kit's src/";
               homepage = "https://github.com/nerima-lisp/cl-history-kit";
               license = pkgs.lib.licenses.mit;
             };
@@ -136,15 +176,37 @@
               exec timeout 120 sbcl --script ${self}/run-tests.lisp
             '';
           };
+          coverage = pkgs.writeShellApplication {
+            name = "cl-history-kit-coverage";
+            runtimeInputs = [
+              pkgs.sbcl
+              pkgs.coreutils
+            ];
+            text = ''
+              export CL_SOURCE_REGISTRY="${sourceRegistry}"
+              out="''${1:-$(mktemp -d)}"
+              timeout 120 sbcl --script ${self}/coverage.lisp "$out"
+              echo "coverage report: $out/coverage/cover-index.html"
+            '';
+          };
         in
+        # `meta.description` on each app is what `nix flake show` lists and
+        # what stops `nix flake check` warning that the app lacks it.
         {
           default = {
             type = "app";
             program = "${test}/bin/cl-history-kit-test";
+            meta.description = "Run the cl-history-kit test suite";
           };
           test = {
             type = "app";
             program = "${test}/bin/cl-history-kit-test";
+            meta.description = "Run the cl-history-kit test suite";
+          };
+          coverage = {
+            type = "app";
+            program = "${coverage}/bin/cl-history-kit-coverage";
+            meta.description = "Write the sb-cover report for cl-history-kit's src/";
           };
         }
       );

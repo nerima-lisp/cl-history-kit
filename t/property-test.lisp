@@ -17,6 +17,14 @@
     (let ((stored (history-entry-texts (history-entries (history-of texts)))))
       (expect (length stored) :to-be (length (remove-duplicates stored :test #'equal)))))
 
+  (it-property "HISTORY-DEDUP leaves every remaining text unique regardless of the original duplicate policy"
+      ((texts (gen-list (gen-command-text) :max-length 12))
+       (policy (gen-member '(:remove :keep))))
+    (let ((history (history-of texts :duplicate-policy policy)))
+      (history-dedup history)
+      (let ((stored (history-entry-texts (history-entries history))))
+        (expect (length stored) :to-be (length (remove-duplicates stored :test #'equal))))))
+
   (it-property "the :KEEP policy records exactly as many entries as were added"
       ((texts (gen-list (gen-command-text) :max-length 6)))
     (let ((history (history-of texts :duplicate-policy :keep)))
@@ -58,13 +66,13 @@
         (expect (history-next history) :to-equal input)
         (expect (history-navigating-p history) :to-be-falsy))))
 
-  (it-property "walking all the way back visits exactly the matching entries"
+  (it-property "walking all the way back under any mode visits exactly the matching entries"
       ((texts (gen-list (gen-command-text) :max-length 8))
-       (query (gen-command-text :min-length 0 :max-length 2)))
+       (query (gen-command-text :min-length 0 :max-length 2))
+       (mode (gen-member '(:prefix :exact :contains :line-prefix))))
     (let* ((history (history-of texts))
-           (expected (history-entry-texts (history-search history query
-                                                          :mode :line-prefix)))
-           (walked (loop for text = (history-previous history query)
+           (expected (history-entry-texts (history-search history query :mode mode)))
+           (walked (loop for text = (history-previous history query :mode mode)
                          while text
                          collect text)))
       (expect walked :to-equal expected)))
@@ -74,4 +82,51 @@
        (newest (gen-command-text)))
     (let ((history (history-of texts)))
       (history-add history newest)
-      (expect (history-previous history "") :to-equal newest))))
+      (expect (history-previous history "") :to-equal newest)))
+
+  (it-property "with WRAP true, walking backward past the oldest match keeps cycling instead of ever returning NIL"
+      ((texts (gen-list (gen-command-text) :min-length 1 :max-length 8))
+       (query (gen-command-text :min-length 0 :max-length 3))
+       (extra-steps (gen-integer :min 1 :max 20)))
+    (let* ((history (history-of texts))
+           (match-count (length (history-search history query))))
+      (when (plusp match-count)
+        (expect (loop repeat (+ match-count extra-steps)
+                      always (history-previous history query :wrap t))
+                :to-be-truthy)
+        (expect (history-navigating-p history) :to-be-truthy))))
+
+  (it-property "with WRAP true, alternating HISTORY-PREVIOUS and HISTORY-NEXT keeps cycling in both directions instead of ever returning NIL"
+      ((texts (gen-list (gen-command-text) :min-length 1 :max-length 8))
+       (query (gen-command-text :min-length 0 :max-length 3))
+       (steps (gen-list (gen-member '(:previous :next)) :min-length 1 :max-length 20)))
+    (let* ((history (history-of texts))
+           (match-count (length (history-search history query))))
+      (when (plusp match-count)
+        (expect (history-previous history query :wrap t) :to-be-truthy)
+        (expect (loop for direction in steps
+                      always (if (eq direction :previous)
+                                 (history-previous history query :wrap t)
+                                 (history-next history)))
+                :to-be-truthy)
+        (expect (history-navigating-p history) :to-be-truthy)))))
+
+(defparameter +fuzz-alphabet+ (format nil "abcXYZ019 -_/~%")
+  "A wider alphabet than +COMMAND-ALPHABET+ -- it includes newlines, so
+generated texts exercise the multi-line splitting in %MAP-LINES, not only the
+single-line case the small search alphabet collides into.")
+
+(defun gen-fuzz-text (&key (min-length 0) (max-length 16))
+  (gen-string :alphabet +fuzz-alphabet+ :min-length min-length :max-length max-length))
+
+(describe "crash safety"
+  (it-fuzz "search and mode-aware navigation never signal on generated text"
+      ((texts (gen-list (gen-fuzz-text) :max-length 10))
+       (query (gen-fuzz-text :max-length 8))
+       (mode (gen-member '(:prefix :exact :contains :line-prefix)))
+       (wrap (gen-member '(t nil))))
+      (:trials 200)
+    (let ((history (history-of texts)))
+      (history-search history query :mode mode)
+      (history-previous history query :mode mode :wrap wrap)
+      (history-next history))))

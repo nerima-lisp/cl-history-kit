@@ -93,6 +93,8 @@ repeats a stored entry:
 (history-kit:history-add history text &key exit-code timestamp)
 (history-kit:history-clear history)
 (history-kit:history-delete history text &key (case-sensitive t))
+(history-kit:history-delete-if history predicate)
+(history-kit:history-dedup history)
 (history-kit:history-merge target source)
 
 (history-kit:history-entries history)          ; a fresh list, newest first
@@ -103,9 +105,14 @@ repeats a stored entry:
 ```
 
 `history-add` returns two values, the store and the entry just recorded. It
-also resets navigation, because adding an entry shifts every index. `history-merge`
-accepts a history or a plain list of entries and preserves each entry's original
-timestamp and exit code, so loading a persisted history does not restamp it.
+also resets navigation, because adding an entry shifts every index. `history-delete-if`
+deletes by predicate over the entry object itself, not just its text, so a host
+can match on exit code or timestamp too. `history-dedup` compacts a store in
+place, keeping each text's newest occurrence regardless of `:duplicate-policy`.
+Both return the number of entries removed, exactly like `history-delete`.
+`history-merge` accepts a history or a plain list of entries and preserves each
+entry's original timestamp and exit code, so loading a persisted history does
+not restamp it.
 
 ## Entries
 
@@ -125,7 +132,7 @@ construction, and there is no copier.
 
 ```lisp
 (history-kit:history-search history query
-  &key (mode :prefix) case-sensitive (smartcase t))
+  &key (mode :prefix) case-sensitive (smartcase t) limit)
 
 (history-kit:history-entry-match-p entry query &key (mode :prefix) case-sensitive)
 (history-kit:history-entry-line-suffix entry query &key case-sensitive)
@@ -150,10 +157,14 @@ the remainder of the first matching line. It returns `nil` when nothing matched
 and `""` when a line is exactly the query, so "no match" and "already complete"
 stay distinguishable.
 
+`limit`, when given, caps the result to at most that many of the newest
+matches; the default `nil` returns every match.
+
 ## Navigation
 
 ```lisp
-(history-kit:history-previous history current-input)
+(history-kit:history-previous history current-input
+  &key (mode :line-prefix) (wrap nil) case-sensitive (smartcase t))
 (history-kit:history-next history)
 (history-kit:history-navigating-p history)
 (history-kit:history-reset-navigation history)
@@ -161,10 +172,16 @@ stay distinguishable.
 
 `history-previous` steps one match further back and returns its text, or `nil`
 when there is no older match. On the first call `current-input` becomes both the
-filter for the whole walk and the origin restored later, so later calls may pass
-whatever the buffer currently shows without disturbing the walk. Matching is
-line-prefix under smartcase, so a multi-line entry is recalled by any of its
-lines.
+filter for the whole walk and the origin restored later, and `mode` becomes the
+walk's match mode -- one of `history-search`'s four -- so later calls may pass
+whatever the buffer currently shows without disturbing the walk. `mode`
+defaults to `:line-prefix`, so a plain Up/Down key pair recalls a multi-line
+entry by any of its lines with no extra argument; pass `:contains` to drive a
+Ctrl-R-style incremental search over the same cursor instead. `wrap`,
+`case-sensitive`, and `smartcase` are frozen on that same first call: `wrap`
+(default `nil`) makes either end of the walk cycle around to the other instead
+of stopping there, and `case-sensitive`/`smartcase` decide sensitivity exactly
+as they do for `history-search`.
 
 `history-next` steps back toward the newest match, and stepping past it ends the
 walk and returns the preserved input. It returns `nil` when no walk is in
@@ -179,7 +196,7 @@ abandoned.
 
 Invalid arguments signal `type-error` via `check-type`, and an unknown search
 mode signals the error from `ecase`. There are no library-specific condition
-types in 0.1.0.
+types.
 
 ## Testing
 
@@ -197,10 +214,20 @@ nix flake check
 
 In scope: the in-memory store, its operations, search, and the recall cursor.
 
-Out of scope for 0.1.0, and deliberately left to the host: file persistence
+Out of scope, and deliberately left to the host: file persistence
 (load/save), the terminal key bindings that call `history-previous` /
 `history-next`, and any shell-specific parsing of entry text such as `!!`-style
 history expansion or last-argument extraction.
+
+## Stability
+
+Since 1.0.0 this library follows [SemVer](https://semver.org/) and its public
+API is frozen: within 1.x, no export is renamed or removed and no existing
+lambda list changes, so new capability arrives only as a new keyword argument
+(defaulting to today's behaviour) or a new function. Internal `%`-prefixed
+symbols, including the `history` struct's slots, are explicitly not part of
+that promise. See [Scope and Non-Goals](https://nerima-lisp.github.io/cl-history-kit/scope/#stability)
+for the full contract.
 
 ## License
 

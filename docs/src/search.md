@@ -2,7 +2,7 @@
 
 ```lisp
 (history-kit:history-search history query
-  &key (mode :prefix) case-sensitive (smartcase t))
+  &key (mode :prefix) case-sensitive (smartcase t) limit)
 ```
 
 Returns the matching entries, newest first, as a fresh list.
@@ -99,6 +99,20 @@ precision.
                                  :smartcase nil :case-sensitive nil))
     ;; => ("git push" "Git log" "git commit")
     ```
+
+## Limiting results
+
+`limit`, when non-`nil`, caps the result to at most that many of the newest
+matches:
+
+```lisp
+(history-kit:history-entry-texts
+ (history-kit:history-search *history* "git" :limit 2))
+;; => ("git push" "Git log")
+```
+
+The default, `nil`, returns every match. `limit` must be a non-negative
+integer or `nil`; anything else signals a `type-error`.
 
 ## Matching a single entry
 

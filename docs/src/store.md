@@ -156,6 +156,8 @@ replay a persisted entry without restamping it.
 ```lisp
 (history-kit:history-clear history)
 (history-kit:history-delete history text &key (case-sensitive t))
+(history-kit:history-delete-if history predicate)
+(history-kit:history-dedup history)
 ```
 
 `history-clear` empties the store and returns it. `history-delete` removes every
@@ -173,6 +175,42 @@ rather than guessing from the query's shape.
 
 Navigation resets only when the delete actually removed something, so a miss
 leaves an in-progress recall untouched.
+
+`history-delete-if` is the predicate-based counterpart: `predicate` is called
+with each `history-entry` object itself, not merely its text, so a host can
+match on exit code or timestamp as well:
+
+```lisp
+(let ((history (history-kit:make-history)))
+  (history-kit:history-add history "git status" :exit-code 0)
+  (history-kit:history-add history "ls -la" :exit-code 0)
+  (history-kit:history-add history "git commit -m wip" :exit-code 1)
+  (history-kit:history-delete-if history
+    (lambda (entry)
+      (let ((code (history-kit:history-entry-exit-code entry)))
+        (and code (plusp code))))))
+;; => 1   -- every entry recording a failed command is gone
+```
+
+Like `history-delete`, it returns the number removed and resets navigation
+only when that count is non-zero.
+
+`history-dedup` compacts a store in place, removing later entries that repeat
+an earlier one's text — the same purge `history-add` performs incrementally
+under the `:remove` duplicate policy, but applied on demand to whatever is
+already stored, regardless of the store's own `:duplicate-policy`. This is what
+makes it possible to clean up a history loaded verbatim from a `:keep`-policy
+store, or from disk, without waiting for each entry to be re-recorded:
+
+```lisp
+(let ((history (history-kit:make-history :duplicate-policy :keep)))
+  (history-kit:history-merge history
+    (list (history-kit:make-history-entry "a")
+          (history-kit:make-history-entry "b")
+          (history-kit:make-history-entry "a")))
+  (history-kit:history-dedup history))
+;; => 1   -- the older "a" is gone; ("a" "b") remains
+```
 
 ## Merging
 

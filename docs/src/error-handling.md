@@ -1,6 +1,6 @@
 # Error Handling
 
-`cl-history-kit` 0.1.0 defines **no condition types of its own**. Invalid
+`cl-history-kit` defines **no condition types of its own**. Invalid
 arguments signal standard conditions, and no operation signals to report an
 ordinary miss.
 
@@ -89,5 +89,5 @@ it untrusted input should impose its own limit before recording:
 
 Library-specific condition types are a plausible addition once there is a
 failure mode that a caller would want to handle differently from a programming
-error. As of 0.1.0 there is none: every signalled condition indicates a caller
-bug, and every runtime outcome is representable as a value.
+error. There is none today: every signalled condition indicates a caller bug,
+and every runtime outcome is representable as a value.

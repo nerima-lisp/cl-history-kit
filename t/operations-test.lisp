@@ -43,6 +43,68 @@
       (expect (history-delete history "a") :to-be 2)
       (expect history :to-record-texts '("b")))))
 
+(describe "deduplicating"
+  (it "removes later repeats and reports how many went, keeping the newest of each text"
+    (let ((history (history-of '("a" "c" "b" "a") :duplicate-policy :keep)))
+      (expect (history-dedup history) :to-be 1)
+      (expect history :to-record-texts '("a" "c" "b"))))
+
+  (it "resets navigation only when it actually removes something"
+    (let ((history (history-of '("a" "c" "b" "a") :duplicate-policy :keep)))
+      (history-previous history "")
+      (expect (history-dedup history) :to-be 1)
+      (expect (history-navigating-p history) :to-be-falsy)))
+
+  (it "leaves an in-progress walk alone when there is nothing to dedup"
+    (let ((history (history-of '("c" "b" "a") :duplicate-policy :keep)))
+      (history-previous history "")
+      (expect (history-dedup history) :to-be 0)
+      (expect (history-navigating-p history) :to-be-truthy))))
+
+(describe "deleting by predicate"
+  (it "deletes every entry with a non-zero exit code and reports how many went"
+    (let ((history (make-history)))
+      (history-add history "ls" :exit-code 0)
+      (history-add history "false-cmd" :exit-code 1)
+      (history-add history "typo" :exit-code 127)
+      (expect (history-delete-if history
+                                 (lambda (entry) (/= (history-entry-exit-code entry) 0)))
+              :to-be 2)
+      (expect history :to-record-texts '("ls"))))
+
+  (it "deletes every entry older than a given timestamp"
+    (let ((history (make-history)))
+      (history-add history "old" :timestamp 100)
+      (history-add history "newer" :timestamp 200)
+      (history-add history "newest" :timestamp 300)
+      (expect (history-delete-if history
+                                 (lambda (entry) (< (history-entry-timestamp entry) 200)))
+              :to-be 1)
+      (expect history :to-record-texts '("newest" "newer"))))
+
+  (it "resets navigation only when it actually deletes something"
+    (let ((history (make-history)))
+      (history-add history "ls" :exit-code 0)
+      (history-add history "bad" :exit-code 1)
+      (history-previous history "")
+      (expect (history-delete-if history
+                                 (lambda (entry) (/= (history-entry-exit-code entry) 0)))
+              :to-be 1)
+      (expect (history-navigating-p history) :to-be-falsy)))
+
+  (it "leaves an in-progress walk alone when the predicate matches nothing"
+    (let ((history (history-of '("ls" "pwd"))))
+      (history-previous history "")
+      (expect (history-delete-if history (lambda (entry) (declare (ignore entry)) nil))
+              :to-be 0)
+      (expect (history-navigating-p history) :to-be-truthy)))
+
+  (it "leaves HISTORY-DELETE matching exact text only, unaffected by predicate-based deletion"
+    (let ((history (history-of '("git commit" "git"))))
+      (expect (history-delete history "git commit -m x") :to-be 0)
+      (expect (history-delete history "git commit") :to-be 1)
+      (expect history :to-record-texts '("git")))))
+
 (describe "merging"
   (it "merges another history, newest-first order preserved"
     (let ((target (history-of '("b" "a")))
@@ -62,10 +124,15 @@
         (expect (history-entry-timestamp entry) :to-be 11)
         (expect (history-entry-exit-code entry) :to-be 3))))
 
-  (it "applies the target's duplicate policy to merged entries"
+  (it "applies the target's :REMOVE duplicate policy to merged entries"
     (let ((target (history-of '("a"))))
       (history-merge target (history-of '("a")))
       (expect target :to-record-texts '("a"))))
+
+  (it "keeps duplicate texts when the target's duplicate policy is :KEEP"
+    (let ((target (history-of '("a") :duplicate-policy :keep)))
+      (history-merge target (history-of '("a")))
+      (expect target :to-record-texts '("a" "a"))))
 
   (it "rejects a source that is neither a history nor a list"
     (signals type-error (history-merge (make-history) :nope))))
