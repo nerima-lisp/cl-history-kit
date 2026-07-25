@@ -187,20 +187,24 @@ exported surface is frozen for the 1.x series — see
 would break it is a 2.0.0, not a 1.x, and needs the issue from step 1 above
 before any code is written.
 
-The version string lives in **two** places, both of which must move together:
-
-| Location | Occurrences |
-| --- | --- |
-| `cl-history-kit.asd` | the `:version` of `cl-history-kit` and of `cl-history-kit/test` |
-| `flake.nix` | the single `version` binding in the `let` block, shared by all three derivations |
+`cl-history-kit.asd` is the only place the version string is edited: the
+`:version` of `cl-history-kit` and of `cl-history-kit/test`. `flake.nix` reads
+the first of those two forms out of the file, so every Nix derivation follows
+on its own and cannot drift from the `.asd`.
 
 Then:
 
 1. Add the release section to `CHANGELOG.md`, and mirror it into
    `docs/src/changelog.md` — the root file is the source of truth, and the
    docs page differs from it only by turning bare references into site links.
+   Use the heading format `## [X.Y.Z] - YYYY-MM-DD` exactly: `release.yml`
+   extracts that section as the GitHub Release body and fails when it finds
+   nothing.
 2. Run `nix flake check`. If `flake.nix` pins a new dependency version, commit
    the resulting `flake.lock` in the same change: a lock still resolving the
    previous pin means CI silently tests against the *old* dependency.
-3. Tag the release `vX.Y.Z`. The flake's own `cl-weave` input is pinned to such
-   a tag, so downstream flakes can pin this one the same way.
+3. Tag the release `vX.Y.Z`. `release.yml` runs on that push: it refuses the
+   tag if it disagrees with the `.asd` version, re-runs `nix flake check`
+   against the tagged tree, and then publishes the release. The flake's own
+   `cl-weave` input is pinned to such a tag, so downstream flakes can pin this
+   one the same way.

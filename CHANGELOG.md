@@ -1,6 +1,25 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to this project are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+<!--
+Heading format is fixed across the org:
+
+    ## [X.Y.Z] - YYYY-MM-DD
+
+The version is bracketed, the separator is an ASCII hyphen (not an em dash),
+and the date is ISO 8601. release.yml extracts the section matching the pushed
+tag as the GitHub Release body, so a heading that deviates makes the release
+fail. Keep `## [Unreleased]` at the top at all times.
+
+Use only these subsection names, and omit the ones that are empty:
+Added / Changed / Deprecated / Removed / Fixed / Security
+-->
+
+## [Unreleased]
 
 ## [1.0.0] - 2026-07-25
 

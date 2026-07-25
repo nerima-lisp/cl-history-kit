@@ -5,6 +5,11 @@ All notable changes to this project are documented here. This page mirrors
 at the repository root, which remains the source of truth. Releases are also
 listed on the [GitHub releases page](https://github.com/nerima-lisp/cl-history-kit/releases).
 
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
 ## [1.0.0] - 2026-07-25
 
 First stable release. The public API is unchanged from 0.4.0 apart from the
