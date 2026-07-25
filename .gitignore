@@ -1,21 +1,62 @@
-# Compiled Lisp artifacts
+# nerima-lisp standard .gitignore
+# Copy to <repo>/.gitignore and append repository-specific entries below the
+# marked section. Everything above the marker must stay identical across repos
+# so that "is this artifact ignored?" has the same answer everywhere.
+
+# --- Common Lisp build output ---
 *.fasl
-*.dfsl
 *.fas
 *.lib
+*.dfsl
+*.ufsl
+*.fsl
 
-# Nix build outputs
+# --- Nix ---
 /result
 /result-*
+/.direnv/
 
-# MkDocs rendered site (docs/mkdocs.yml writes to ./site)
+# --- Test and coverage output ---
+/coverage/
+/coverage-report/
+/*-coverage-report/
+*.coverage
+coverage.dat
+/__snapshots__/
+/*-snapshots/
+
+# --- Local caches and scratch space ---
+/.cache/
+/.deps/
+/tmp/
+/.worktrees/
+/.paredit.cleanup/
+
+# --- Editor and OS noise ---
+.DS_Store
+*~
+\#*\#
+.\#*
+
+# --- Credentials (never commit) ---
+# Required by SUPPLY_CHAIN.md's "do not put secrets in the repository". This
+# is the second layer; the first is GitHub secret scanning push protection.
+.env
+.env.*
+*.pem
+*.key
+id_rsa
+id_ed25519
+.netrc
+.cachix-token
+
+# --- Repository-specific entries below this line ---
+
+# MkDocs rendered site (docs/mkdocs.yml sets site_dir: ../site)
 /site/
 
-# Editor/tool scratch output
-tmp/
-tmp-debug/
+# Scratch output from local debugging sessions
+/tmp-debug/
 
-# Serena project cache
+# Serena project cache (the tracked .serena/ config is kept)
 .serena/cache/
-
-.worktrees/
