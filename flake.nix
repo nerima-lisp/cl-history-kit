@@ -36,12 +36,22 @@
       forAllSystems = nixpkgs.lib.genAttrs systems;
       sourceRegistry = "${cl-weave}//:${self}//";
 
-      # Declared once and shared by every derivation below, so cutting a
-      # release cannot leave the flake's three package versions disagreeing
-      # with each other. It must still be kept in step with the two :VERSION
-      # forms in cl-history-kit.asd -- see docs/src/contributing.md's
-      # "Cutting a release".
-      version = "1.0.0";
+      # Single source of truth for the package version: the `:version` form in
+      # cl-history-kit.asd. A release only ever edits the .asd file and every
+      # Nix derivation below follows automatically, so the flake can no longer
+      # disagree with the .asd the way cl-cc does (flake 0.8.0, asd 0.1.0, tag
+      # v0.1.0). Nix regexes are whole-string anchored and `.` never spans
+      # newlines, so the version is extracted line-by-line rather than with one
+      # multi-line match. The first matching line wins, which is the main
+      # system's -- the test system repeats the same version below it.
+      version =
+        let
+          lines = nixpkgs.lib.splitString "\n" (builtins.readFile ./cl-history-kit.asd);
+          versionLine = builtins.head (
+            builtins.filter (line: builtins.match "[[:space:]]*:version \"[^\"]*\"" line != null) lines
+          );
+        in
+        builtins.head (builtins.match "[[:space:]]*:version \"([^\"]*)\"" versionLine);
 
       # treefmt drives `nix fmt` and the `checks.<system>.formatting` gate.
       # Scope is Nix only: nixfmt (RFC-style) is a zero-footgun, low-diff
@@ -158,6 +168,13 @@
           # Fails `nix flake check` when any tracked file is unformatted,
           # turning the formatter into an enforced CI gate.
           formatting = treefmtEval.${system}.config.build.check self;
+
+          # The docs package builds with `mkdocs --strict`, so a broken link or
+          # a page missing from the nav fails the build. Without this the docs
+          # are only ever built by the publish workflow, which runs after a
+          # merge to main, meaning such a break surfaces as a failed deploy
+          # rather than as a failed pull request.
+          docs = self.packages.${system}.docs;
         }
       );
 
