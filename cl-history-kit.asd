@@ -1,0 +1,47 @@
+;;;; cl-history-kit.asd
+(asdf:defsystem "cl-history-kit"
+  :description "Dependency-free command-history store, search, and recall navigation for Common Lisp"
+  :long-description "A bounded, newest-first history of recorded input lines with
+duplicate policies, four search modes with smartcase, and the prefix-filtered recall
+cursor an Up/Down key pair drives -- including preservation of the in-progress input
+so stepping forward past the newest match restores exactly what the user had typed."
+  :version "0.1.0"
+  :author "takeokunn <bararararatty@gmail.com>"
+  :maintainer "takeokunn <bararararatty@gmail.com>"
+  :license "MIT"
+  :homepage "https://github.com/nerima-lisp/cl-history-kit"
+  :bug-tracker "https://github.com/nerima-lisp/cl-history-kit/issues"
+  :source-control (:git "https://github.com/nerima-lisp/cl-history-kit.git")
+  :depends-on ()
+  :pathname "src"
+  :serial t
+  :components ((:file "package")
+               (:file "text")
+               (:file "entry")
+               (:file "store")
+               (:file "operations")
+               (:file "search")
+               (:file "navigation"))
+  :in-order-to ((test-op (test-op "cl-history-kit/test"))))
+
+(asdf:defsystem "cl-history-kit/test"
+  :description "Test system for cl-history-kit"
+  :version "0.1.0"
+  :author "takeokunn <bararararatty@gmail.com>"
+  :maintainer "takeokunn <bararararatty@gmail.com>"
+  :license "MIT"
+  :homepage "https://github.com/nerima-lisp/cl-history-kit"
+  :bug-tracker "https://github.com/nerima-lisp/cl-history-kit/issues"
+  :source-control (:git "https://github.com/nerima-lisp/cl-history-kit.git")
+  :depends-on ("cl-history-kit" "cl-weave")
+  :pathname "t"
+  :serial t
+  :components ((:file "package")
+               (:file "matchers")
+               (:file "entry-test")
+               (:file "store-test")
+               (:file "operations-test")
+               (:file "search-test")
+               (:file "navigation-test")
+               (:file "property-test"))
+  :perform (test-op (operation component) (declare (ignore operation component)) (unless (funcall (symbol-function (find-symbol "RUN-TESTS" "CL-HISTORY-KIT/TEST"))) (error "cl-history-kit test suite failed"))))

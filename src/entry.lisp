@@ -1,0 +1,34 @@
+;;;; src/entry.lisp
+;;;;
+;;;; The immutable entry value object.  An entry is created once, never
+;;;; mutated, and never shallow-copied: the store only ever conses and drops
+;;;; whole entries, so there is no copier and every slot is read-only.
+(in-package #:history-kit)
+
+(defstruct (history-entry
+            (:constructor %make-history-entry (text timestamp exit-code))
+            (:copier nil))
+  "One recorded line of history.
+
+TEXT is the recorded input.  TIMESTAMP is the universal time at which it was
+recorded.  EXIT-CODE is the exit status of the command it ran, or NIL when the
+host tracks no exit status (a bare input prompt) or has not produced one yet."
+  (text "" :type string :read-only t)
+  (timestamp 0 :type integer :read-only t)
+  (exit-code nil :type (or null integer) :read-only t))
+
+(defun make-history-entry (text &key (timestamp (get-universal-time)) exit-code)
+  "Create an entry recording TEXT.
+
+TIMESTAMP defaults to the current universal time; pass it explicitly to replay
+a persisted entry without restamping it.  EXIT-CODE is an integer or NIL.
+TEXT is copied, so a caller may keep filling an adjustable input buffer after
+recording it without corrupting the entry."
+  (check-type text string)
+  (check-type timestamp integer)
+  (check-type exit-code (or null integer))
+  (%make-history-entry (copy-seq text) timestamp exit-code))
+
+(defun history-entry-texts (entries)
+  "Return the recorded text of each entry in ENTRIES, in order."
+  (mapcar #'history-entry-text entries))
