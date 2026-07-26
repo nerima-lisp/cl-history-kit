@@ -38,7 +38,7 @@ so stepping forward past the newest match restores exactly what the user had typ
   :pathname "t"
   :serial t
   :components ((:file "package")
-               (:file "matchers")
+               (:file "helpers-matchers")
                (:file "boundary-test")
                (:file "entry-test")
                (:file "store-test")

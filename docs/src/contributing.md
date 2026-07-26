@@ -91,23 +91,23 @@ percentage; that would trade real safety for a cosmetic number.
 
 ```text
 src/
-  package.lisp      the single public package; everything else is internal
-  boundary.lisp     DEFINE-CHECKED-FUNCTION: argument validation as data
-  text.lisp         case-aware text predicates (prefix, equal, contains, line)
-  entry.lisp        the immutable entry value object
-  store.lisp        the bounded store and its checked readers
-  operations.lisp   add, clear, delete, delete-if, dedup, merge
-  search.lisp       the four search modes and the autosuggestion suffix
-  navigation.lisp   the recall cursor
+  package.lisp           the single public package; everything else is internal
+  boundary.lisp          DEFINE-CHECKED-FUNCTION: argument validation as data
+  text.lisp              case-aware text predicates (prefix, equal, contains, line)
+  entry.lisp             the immutable entry value object
+  store.lisp             the bounded store and its checked readers
+  operations.lisp        add, clear, delete, delete-if, dedup, merge
+  search.lisp            the four search modes and the autosuggestion suffix
+  navigation.lisp        the recall cursor
 t/
-  package.lisp      the test package and the RUN-TESTS entry point
-  matchers.lisp     domain matchers and generators shared by every spec
-  *-test.lisp       one spec file per concern, mirroring src/
+  package.lisp           the test package and the RUN-TESTS entry point
+  helpers-matchers.lisp  domain matchers and generators shared by every spec
+  *-test.lisp            one spec file per concern, mirroring src/
 docs/
-  mkdocs.yml        Material for MkDocs configuration
-  src/              the documentation pages
-run-tests.lisp      test entry point (see "Running the tests" above)
-coverage.lisp       coverage entry point (see "Coverage" above)
+  mkdocs.yml             Material for MkDocs configuration
+  src/                   the documentation pages
+run-tests.lisp           test entry point (see "Running the tests" above)
+coverage.lisp            coverage entry point (see "Coverage" above)
 ```
 
 Files are split by concern rather than by size. A new public function belongs
