@@ -141,18 +141,18 @@ HISTORY-SEARCH."
          (matcher (%history-matcher walk-mode))
          (start (if navigating (1+ cursor) 0)))
     (%scan-with-wrap walk-wrap
-                      (lambda () (%find-older-match entries start prefix matcher sensitive))
-                      (lambda () (%find-older-match entries 0 prefix matcher sensitive))
-                      (lambda (index text)
-                        (unless navigating
-                          (setf (%history-cursor-prefix history) current-input
-                                (%history-cursor-origin history) current-input
-                                (%history-cursor-mode history) walk-mode
-                                (%history-cursor-wrap history) walk-wrap
-                                (%history-cursor-sensitive history) sensitive))
-                        (setf (%history-cursor history) index)
-                        text)
-                      (constantly nil))))
+                     (lambda () (%find-older-match entries start prefix matcher sensitive))
+                     (lambda () (%find-older-match entries 0 prefix matcher sensitive))
+                     (lambda (index text)
+                       (unless navigating
+                         (setf (%history-cursor-prefix history) current-input
+                               (%history-cursor-origin history) current-input
+                               (%history-cursor-mode history) walk-mode
+                               (%history-cursor-wrap history) walk-wrap
+                               (%history-cursor-sensitive history) sensitive))
+                       (setf (%history-cursor history) index)
+                       text)
+                     (constantly nil))))
 
 (define-checked-function history-next (history)
     "Step one match forward through HISTORY and return its text.
@@ -171,12 +171,13 @@ first place."
                                               :line-prefix)))
                (sensitive (%history-cursor-sensitive history)))
           (%scan-with-wrap (%history-cursor-wrap history)
-                            (lambda () (%find-newer-match entries cursor prefix matcher sensitive))
-                            (lambda () (%find-newer-match entries (length entries) prefix matcher sensitive))
-                            (lambda (index text)
-                              (setf (%history-cursor history) index)
-                              text)
-                            (lambda () (%history-restore-origin history))))
+                           (lambda () (%find-newer-match entries cursor prefix matcher sensitive))
+                           (lambda ()
+                             (%find-newer-match entries (length entries) prefix matcher sensitive))
+                           (lambda (index text)
+                             (setf (%history-cursor history) index)
+                             text)
+                           (lambda () (%history-restore-origin history))))
         (%history-restore-origin history))))
 
 (define-checked-function history-reset-navigation (history)

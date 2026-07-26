@@ -34,7 +34,8 @@ distinguishable from the NIL returned when nothing matched."
   (%text-line-suffix (history-entry-text entry) query
                      :case-sensitive case-sensitive))
 
-(define-checked-function history-search (history query &key (mode :prefix) case-sensitive (smartcase t) limit)
+(define-checked-function history-search (history query &key (mode :prefix) case-sensitive
+                                         (smartcase t) limit)
     "Return the entries of HISTORY matching QUERY under MODE, newest first.
 
 MODE is :PREFIX (default), :EXACT, :CONTAINS, or :LINE-PREFIX.
