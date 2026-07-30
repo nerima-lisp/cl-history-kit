@@ -7,15 +7,24 @@
 
 (defstruct (history-entry
             (:constructor %make-history-entry (text timestamp exit-code))
+            (:conc-name %history-entry-)
             (:copier nil))
   "One recorded line of history.
 
-TEXT is the recorded input.  TIMESTAMP is the universal time at which it was
-recorded.  EXIT-CODE is the exit status of the command it ran, or NIL when the
+TEXT is the recorded input. TIMESTAMP is the universal time at which it was
+recorded. EXIT-CODE is the exit status of the command it ran, or NIL when the
 host tracks no exit status (a bare input prompt) or has not produced one yet."
   (text "" :type string :read-only t)
   (timestamp 0 :type integer :read-only t)
   (exit-code nil :type (or null integer) :read-only t))
+
+(define-typed-function history-entry-text (entry history-entry)
+    "Return a fresh copy of ENTRY text.
+
+The entry stores text privately, so callers cannot mutate history state through
+the returned string."
+    ()
+  (copy-seq (%history-entry-text entry)))
 
 (define-checked-function make-history-entry (text &key (timestamp (get-universal-time)) exit-code)
     "Create an entry recording TEXT.
@@ -28,6 +37,16 @@ recording it without corrupting the entry."
      (timestamp integer)
      (exit-code (or null integer)))
   (%make-history-entry (copy-seq text) timestamp exit-code))
+
+(define-typed-function history-entry-timestamp (entry history-entry)
+  "Return the universal-time timestamp recorded in ENTRY."
+  ()
+  (%history-entry-timestamp entry))
+
+(define-typed-function history-entry-exit-code (entry history-entry)
+  "Return the process exit code recorded in ENTRY, or NIL."
+  ()
+  (%history-entry-exit-code entry))
 
 (defun history-entry-texts (entries)
   "Return the recorded text of each entry in ENTRIES, in order."

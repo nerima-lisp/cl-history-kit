@@ -5,7 +5,7 @@
 duplicate policies, four search modes with smartcase, and the prefix-filtered recall
 cursor an Up/Down key pair drives -- including preservation of the in-progress input
 so stepping forward past the newest match restores exactly what the user had typed."
-  :version "1.0.0"
+  :version "1.0.1"
   :author "takeokunn <bararararatty@gmail.com>"
   :maintainer "takeokunn <bararararatty@gmail.com>"
   :license "MIT"
@@ -21,20 +21,21 @@ so stepping forward past the newest match restores exactly what the user had typ
                (:file "entry")
                (:file "store")
                (:file "operations")
+               (:file "merge")
                (:file "search")
                (:file "navigation"))
   :in-order-to ((test-op (test-op "cl-history-kit/test"))))
 
 (asdf:defsystem "cl-history-kit/test"
   :description "Test system for cl-history-kit"
-  :version "1.0.0"
+  :version "1.0.1"
   :author "takeokunn <bararararatty@gmail.com>"
   :maintainer "takeokunn <bararararatty@gmail.com>"
   :license "MIT"
   :homepage "https://github.com/nerima-lisp/cl-history-kit"
   :bug-tracker "https://github.com/nerima-lisp/cl-history-kit/issues"
   :source-control (:git "https://github.com/nerima-lisp/cl-history-kit.git")
-  :depends-on ("cl-history-kit" (:version "cl-weave" "1.0.0"))
+  :depends-on ("cl-history-kit" (:version "cl-weave" "1.1.0"))
   :pathname "t"
   :serial t
   :components ((:file "package")
@@ -43,6 +44,7 @@ so stepping forward past the newest match restores exactly what the user had typ
                (:file "entry-test")
                (:file "store-test")
                (:file "operations-test")
+               (:file "merge-test")
                (:file "search-test")
                (:file "navigation-test")
                (:file "property-test"))

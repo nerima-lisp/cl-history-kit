@@ -5,16 +5,9 @@
 ;;;; and the prefix-aware navigation cursor -- is exported here and nothing
 ;;;; else.  Internal helpers keep a leading % and stay unexported.
 ;;;;
-;;;; The global OPTIMIZE proclamation below is a deliberate choice, not the
-;;;; implementation default: every public entry point already validates its
-;;;; arguments at the boundary (DEFINE-CHECKED-FUNCTION, boundary.lisp), so
-;;;; the bodies behind that boundary never need SAFETY 3's redundant runtime
-;;;; checking to stay correct. This is loaded before every other file
-;;;; (:SERIAL T in the .asd), and SBCL's OPTIMIZE proclamation is a global
-;;;; compiler policy rather than a per-file one, so it governs the
-;;;; compilation of the whole system from here.
-(declaim (optimize (speed 3) (safety 1) (compilation-speed 0)))
-
+;;;; Optimization stays local to internal hot paths.  A library-wide OPTIMIZE
+;;;; proclamation would leak into forms compiled by a client after loading this
+;;;; system; checked public boundaries retain their ordinary compiler policy.
 (defpackage #:history-kit
   (:use #:cl)
   (:export

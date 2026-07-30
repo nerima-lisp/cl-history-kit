@@ -9,7 +9,12 @@
 ;;;; is now data the definition carries, not logic it performs -- so a reader
 ;;;; (or a future macro walking the source) can see a function's contract
 ;;;; without reading its body, and the CHECK-TYPE/DEFUN wiring itself has
-;;;; exactly one definition instead of one per call site.
+;;;; exactly one definition instead of one per call site.  DEFINE-TYPED-
+;;;; FUNCTION below builds on it for the common further case: nearly every
+;;;; checked function's first CHECKS entry validates its own principal
+;;;; argument (a HISTORY or a HISTORY-ENTRY), so that shared entry becomes
+;;;; data this macro supplies once rather than a literal each call site
+;;;; repeats.
 (in-package #:history-kit)
 
 (defmacro define-checked-function (name lambda-list documentation (&rest checks) &body body)
@@ -29,4 +34,20 @@ own -- a macro cannot stand in for a function at those call sites."
   `(defun ,name ,lambda-list
      ,documentation
      ,@(mapcar (lambda (check) `(check-type ,(first check) ,(second check))) checks)
+     ,@body))
+
+(defmacro define-typed-function
+    (name (var type &rest extra-args) documentation (&rest extra-checks) &body body)
+  "Define NAME as a DEFINE-CHECKED-FUNCTION whose first parameter VAR is
+checked against TYPE ahead of EXTRA-CHECKS, over the lambda list (VAR
+. EXTRA-ARGS).
+
+Nearly every checked function in this library takes a principal argument --
+a HISTORY or a HISTORY-ENTRY -- and validates it first; only the two
+constructors (MAKE-HISTORY, MAKE-HISTORY-ENTRY) do not, since they have no
+existing instance to receive. This macro lifts that one shared position out
+of each call site's CHECKS list, the same way DEFINE-CHECKED-FUNCTION itself
+lifted CHECK-TYPE out of each function's body."
+  `(define-checked-function ,name (,var ,@extra-args) ,documentation
+       ((,var ,type) ,@extra-checks)
      ,@body))

@@ -14,87 +14,116 @@ the most recent one: re-running a command moves it to the top rather than
 leaving a stale copy above it."
   (let ((seen (make-hash-table :test #'equal :size (length entries))))
     (loop for entry in entries
-          for text = (history-entry-text entry)
+          for text = (%history-entry-text entry)
           unless (gethash text seen)
             do (setf (gethash text seen) t)
-            and collect entry)))
+          and
+          collect entry)))
 
-(defun %history-remove-text (entries text)
-  "Return ENTRIES with any entry whose text is STRING= to TEXT removed.
+(defun %history-find-text-offset (history text)
+  "Return the newest-first offset of TEXT in HISTORY, or NIL."
+  (declare (optimize (speed 3) (safety 1) (compilation-speed 0)))
+  (loop for offset below (%history-count history)
+        when (string= text (%history-entry-text (%history-entry-at history offset)))
+          return offset))
 
-This is HISTORY-ADD's :REMOVE-policy displacement step, not a general
-dedupe: under that policy ENTRIES is already duplicate-free by induction (it
-only ever grows through this same step), so the entry just recorded has at
-most one existing entry to displace. A single linear scan comparing TEXT
-therefore gives the same result as running the newly-consed list through
-%HISTORY-DEDUPE's hash-table rebuild, without allocating or hashing into a
-table sized for the whole history on every recorded entry."
-  (remove text entries :key #'history-entry-text :test #'string=))
+(defun %history-add-entry (history entry duplicate-offset &key (update-revision t))
+  "Record ENTRY at the logical head, removing DUPLICATE-OFFSET when supplied.
+
+When UPDATE-REVISION is NIL, the caller is responsible for advancing HISTORY
+revision after its composite operation completes."
+  (declare (optimize (speed 3) (safety 1) (compilation-speed 0)))
+  (let ((capacity (%history-capacity history)))
+    (unless (zerop capacity)
+      (let* ((storage (%history-entries history))
+             (texts (%history-texts history))
+             (count (%history-count history))
+             (head (mod (1- (%history-head history)) capacity)))
+        (when (and (null duplicate-offset) (= count capacity))
+          (remhash
+           (%history-entry-text (%history-entry-at history (1- count)))
+           texts))
+        (when duplicate-offset
+          (loop for offset from (1+ duplicate-offset) below count
+                do (setf (aref storage (mod (+ head offset) capacity))
+                         (%history-entry-at history offset))))
+        (setf (%history-head history) head
+              (aref storage head) entry
+              (%history-count history) (if duplicate-offset
+                                         count
+                                         (min capacity (1+ count)))
+              (gethash (%history-entry-text entry) texts) t)
+        (when update-revision
+          (incf (%history-revision history)))))
+    history))
 
 (defmacro %purging ((history entries) &body remaining-form)
-  "Evaluate REMAINING-FORM -- an expression computing the surviving subset of
-ENTRIES, a symbol this macro binds to HISTORY's current entries -- and, when
-it dropped at least one entry, install the survivors into HISTORY and reset
-its navigation cursor. Expands to the number of entries removed.
-
-This is the shared install-if-changed protocol behind every purge in this
-file that reports how many entries went: HISTORY-DELETE (exact text),
-HISTORY-DEDUP (repeated text), and HISTORY-DELETE-IF (predicate). Naming the
-binding ENTRIES instead of gensym-ing it is deliberate anaphoric-macro style
-(compare ON LISP's AIF/IT): every call site below reads ENTRIES from
-REMAINING-FORM, so capturing that name on purpose -- not hiding it -- is the
-whole point."
+  "Install a filtered snapshot unless HISTORY changed during filtering."
   (let ((remaining (gensym "REMAINING"))
+        (original-count (gensym "ORIGINAL-COUNT"))
+        (revision (gensym "REVISION"))
         (removed (gensym "REMOVED")))
-    `(let* ((,entries (%history-entries ,history))
-            (,remaining (progn ,@remaining-form))
-            (,removed (- (length ,entries) (length ,remaining))))
-       (when (plusp ,removed)
-         (%history-install-entries ,history ,remaining)
-         (%history-reset-cursor ,history))
-       ,removed)))
+    `(let* ((,entries (%history-entry-list ,history))
+           (,original-count (%history-count ,history))
+           (,revision (%history-revision ,history))
+           (,remaining
+          (progn
+            ,@remaining-form))
+           (,removed (- ,original-count (length ,remaining))))
+      (unless (= (%history-revision ,history) ,revision)
+        (error "History changed while a purge predicate was running."))
+      (when (plusp ,removed)
+        (%history-install-entries ,history ,remaining)
+        (%history-reset-cursor ,history))
+      ,removed)))
 
-(define-checked-function history-add (history text &key exit-code (timestamp (get-universal-time)))
-    "Record TEXT as the newest entry of HISTORY.
+(define-typed-function
+  history-add
+  (history history text &key exit-code (timestamp (get-universal-time)))
+  "Record TEXT as the newest entry of HISTORY.
 
-Honours the store's duplicate policy, drops the oldest entries past capacity,
-and resets navigation -- adding an entry shifts every index, so a cursor left
-over from before the addition would silently point somewhere else.
-
-Returns two values: HISTORY and the entry just recorded."
-    ((history history))
-  (let* ((entry (make-history-entry text :timestamp timestamp :exit-code exit-code))
-         (old-entries (%history-entries history))
-         (entries (cons entry
-                        (if (eq (%history-duplicate-policy history) :remove)
-                            (%history-remove-text old-entries text)
-                            old-entries))))
-    (%history-install-entries history entries)
+Honours the configured duplicate policy, drops the oldest entries past capacity,
+and resets navigation. Returns HISTORY and the entry just recorded."
+  ()
+  (let ((entry (make-history-entry text :timestamp timestamp :exit-code exit-code)))
+    (%history-add-entry
+      history
+      entry
+      (and
+        (eq (%history-duplicate-policy history) :remove)
+        (gethash text (%history-texts history))
+        (%history-find-text-offset history text)))
     (%history-reset-cursor history)
     (values history entry)))
 
-(define-checked-function history-clear (history)
-    "Remove every entry from HISTORY and reset navigation.  Returns HISTORY."
-    ((history history))
+(define-typed-function
+  history-clear
+  (history history)
+  "Remove every entry from HISTORY and reset navigation.  Returns HISTORY."
+  ()
   (%history-install-entries history nil)
   (%history-reset-cursor history))
 
-(define-checked-function history-delete (history text &key (case-sensitive t))
-    "Delete every entry of HISTORY whose text matches TEXT exactly.
+(define-typed-function
+  history-delete
+  (history history text &key (case-sensitive t))
+  "Delete every entry of HISTORY whose text matches TEXT exactly.
 
 Comparison is case-sensitive unless CASE-SENSITIVE is NIL.  Returns the number
 of entries deleted; navigation is reset only when that count is non-zero, so a
 miss leaves an in-progress recall untouched."
-    ((history history)
-     (text string))
-  (%purging (history entries)
-    (remove-if (lambda (entry)
-                 (%text-equal-p (history-entry-text entry) text
-                                :case-sensitive case-sensitive))
-               entries)))
+  ((text string))
+  (%purging
+    (history entries)
+    (remove-if
+      (lambda (entry)
+        (%text-equal-p (%history-entry-text entry) text :case-sensitive case-sensitive))
+      entries)))
 
-(define-checked-function history-dedup (history)
-    "Compact HISTORY in place, removing later entries that repeat an earlier
+(define-typed-function
+  history-dedup
+  (history history)
+  "Compact HISTORY in place, removing later entries that repeat an earlier
 entry's text.
 
 This applies the same case-sensitive EQUAL comparison %HISTORY-DEDUPE uses at
@@ -105,12 +134,13 @@ an explicit, on-demand purge of whatever is currently stored (useful after
 loading a history that was never deduplicated, e.g. from disk).  Returns the
 number of entries removed; navigation is reset only when that count is
 non-zero, so a no-op call leaves an in-progress recall untouched."
-    ((history history))
-  (%purging (history entries)
-    (%history-dedupe entries)))
+  ()
+  (%purging (history entries) (%history-dedupe entries)))
 
-(define-checked-function history-delete-if (history predicate)
-    "Delete every entry of HISTORY for which PREDICATE returns true.
+(define-typed-function
+  history-delete-if
+  (history history predicate)
+  "Delete every entry of HISTORY for which PREDICATE returns true.
 
 PREDICATE is called with each history-entry object itself, not merely its
 text, so callers can match on timestamp or exit-code as well -- for example
@@ -122,51 +152,8 @@ with two argument shapes.  Returns the number of entries deleted; navigation
 is reset only when that count is non-zero, so a miss leaves an in-progress
 recall untouched.
 
-PREDICATE runs over a snapshot of HISTORY's entries taken at the start of the
-call; if it reentrantly mutates the same HISTORY (for example by calling
-HISTORY-ADD) while being scanned, those in-flight changes are overwritten when
-HISTORY-DELETE-IF installs its own result."
-    ((history history))
-  (%purging (history entries)
-    (remove-if predicate entries)))
-
-(defun %history-source-entries (source)
-  "Return the entry list of SOURCE, which is a history or a list of entries."
-  (cond
-    ((history-p source) (%history-entries source))
-    ((listp source) source)
-    (t (error 'type-error :datum source :expected-type '(or history list)))))
-
-(define-checked-function history-merge (target source)
-    "Merge SOURCE into TARGET, newest-first order and duplicate policy preserved.
-
-SOURCE is a history or a newest-first list of entries.  Each entry keeps its
-original timestamp and exit code, so merging a history loaded from disk does
-not restamp every entry with the load time.  Returns TARGET.
-
-Prepends SOURCE's entries in front of TARGET's in one batch -- rather than
-calling HISTORY-ADD once per entry -- and applies TARGET's duplicate policy
-and capacity to the combined list a single time. This is equivalent to the
-call-HISTORY-ADD-per-entry approach it replaces: repeatedly displacing a same-
-text entry as each new entry is inserted at the front produces the same
-survivors, in the same order, as running the whole concatenation through
-%HISTORY-DEDUPE once (both keep, for each distinct text, whichever occurrence
-appears first in front-to-back order); and repeatedly capping to capacity
-after each insertion drops the same tail entries as capping once at the end,
-since nothing after the first cap ever re-enters the kept prefix. The batched
-form turns an O(entry count x TARGET capacity) merge into one that is only
-O(entry count + TARGET capacity), which matters when loading a large history
-from disk into an already-full store."
-    ((target history))
-  (let ((new-entries (%history-source-entries source)))
-    (dolist (entry new-entries)
-      (check-type entry history-entry))
-    (when new-entries
-      (let ((combined (append new-entries (%history-entries target))))
-        (%history-install-entries
-         target
-         (if (eq (%history-duplicate-policy target) :remove)
-             (%history-dedupe combined)
-             combined))
-        (%history-reset-cursor target))))
-  target)
+PREDICATE runs over an entry snapshot captured at the start of the call.  A
+predicate must not mutate the same HISTORY while it is being scanned: the
+operation signals an error rather than installing a stale result."
+  ()
+  (%purging (history entries) (remove-if predicate entries)))

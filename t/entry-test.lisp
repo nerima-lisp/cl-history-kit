@@ -31,3 +31,10 @@
     (expect (history-entry-texts (list (make-history-entry "b")
                                        (make-history-entry "a")))
             :to-equal '("b" "a"))))
+
+(describe "history entry immutability"
+  (it "returns a copy, so a caller cannot mutate stored text"
+    (let* ((entry (make-history-entry "ls"))
+           (text (history-entry-text entry)))
+      (setf (char text 0) #\X)
+      (expect (history-entry-text entry) :to-equal "ls"))))

@@ -33,7 +33,7 @@
       (signals type-error (history-reset-navigation :not-a-history))))
 
   (it "rejects a non-string everywhere text is required"
-    (let ((history (history-of '("ls")))
+    (let ((history (history-of (list "ls")))
           (entry (make-history-entry "ls")))
       (signals type-error (make-history-entry 42))
       (signals type-error (history-delete history 42))
@@ -43,6 +43,9 @@
       (signals type-error (history-previous history 42))))
 
   (it "rejects a non-entry everywhere an entry is required"
+    (signals type-error (history-entry-text :not-an-entry))
+    (signals type-error (history-entry-timestamp :not-an-entry))
+    (signals type-error (history-entry-exit-code :not-an-entry))
     (signals type-error (history-entry-match-p :not-an-entry "ls"))
     (signals type-error (history-entry-line-suffix :not-an-entry "ls"))
     ;; HISTORY-MERGE checks each element of a source list, not just the list.
@@ -54,22 +57,25 @@
     (signals type-error (make-history :duplicate-policy :dedupe))
     (signals type-error (make-history-entry "ls" :timestamp "now"))
     (signals type-error (make-history-entry "ls" :exit-code :ok))
-    (signals type-error (history-search (history-of '("ls")) "ls" :limit -1))
-    (signals type-error (history-search (history-of '("ls")) "ls" :limit :all)))
+    (signals type-error (history-search (history-of (list "ls")) "ls" :limit -1))
+    (signals type-error (history-search (history-of (list "ls")) "ls" :limit :all)))
 
-  (it "signals before mutating, so a rejected call leaves the store untouched"
-    (let ((history (history-of '("ls"))))
+  (it "signals before mutating, so rejected calls leave the store and navigation untouched"
+    (let ((history (history-of (list "ls"))))
       (history-previous history "")
       (signals type-error (history-delete history 42))
-      (expect history :to-record-texts '("ls"))
-      ;; The in-progress walk survives a rejected call as well.
+      (signals type-error (history-add history 42))
+      (signals type-error (history-add history "pwd" :timestamp "now"))
+      (signals type-error (history-add history "pwd" :exit-code :failure))
+      (expect history :to-record-texts (list "ls"))
+      ;; The in-progress walk survives rejected mutations as well.
       (expect (history-navigating-p history) :to-be-truthy)))
 
   (it "accepts the boundary values its contract admits"
     ;; A zero capacity, a zero limit and an empty query are all inside the
     ;; declared types, so none of them may signal.
     (expect (history-count (make-history :capacity 0)) :to-be 0)
-    (expect (history-search (history-of '("ls")) "" :limit 0) :to-equal nil)
-    (expect (history-search (history-of '("ls")) "") :to-have-texts '("ls"))
+    (expect (history-search (history-of (list "ls")) "" :limit 0) :to-equal nil)
+    (expect (history-search (history-of (list "ls")) "") :to-have-texts (list "ls"))
     (expect (history-entry-exit-code (make-history-entry "ls" :exit-code -1))
             :to-be -1)))
