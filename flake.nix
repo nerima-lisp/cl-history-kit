@@ -2,10 +2,32 @@
   description = "Dependency-free command-history store, search, and recall navigation for Common Lisp";
 
   inputs = {
+    # nixos-unstable, not nixpkgs-unstable: it advances only after the NixOS
+    # release tests pass, so it is less likely to land a broken build.
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
+    # `inputs.nixpkgs.follows` is mandatory on every input: without it each one
+    # drags in its own nixpkgs, inflating flake.lock and rebuilding the same
+    # derivations.
+
+    # The org flake preset. Everything this file used to spell out by hand --
+    # the `.asd` version extraction, `forAllSystems`, the treefmt eval wired to
+    # both `formatter` and `checks.formatting`, the mkdocs package plus its
+    # check, the run-tests.lisp gate, the `apps.test`/`apps.default` pair and
+    # the devShell -- is the single `mkPackageFlake` call below, so none of it
+    # can drift from the other nerima-lisp repositories.
+    #
+    # Pinned to a release TAG, never to a branch: a bare
+    # `github:nerima-lisp/cl-nix-forge` follows that repository's default
+    # branch, so an upstream push to main would change this build without
+    # warning.
+    cl-nix-forge = {
+      url = "github:nerima-lisp/cl-nix-forge/v0.4.0";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     cl-weave = {
-      url = "github:nerima-lisp/cl-weave/v1.0.0";
+      url = "github:nerima-lisp/cl-weave/v1.1.0";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -16,229 +38,150 @@
   };
 
   outputs =
-    inputs@{
+    {
       self,
       nixpkgs,
+      cl-nix-forge,
       cl-weave,
       treefmt-nix,
-      ...
     }:
     let
-      # Every declared system is verified: ci.yml runs `nix flake check` --
-      # the SBCL suite plus the formatting gate -- once per entry here, on a
-      # runner of that platform. The flake never advertises a platform CI does
-      # not build and test, so adding one means adding the matching CI matrix
-      # entry in the same change.
+      # Only what is verified: x86_64-linux by CI, aarch64-darwin by the
+      # maintainer's local `nix flake check`. aarch64-linux and x86_64-darwin
+      # are not declared because nothing runs them, and a platform no runner
+      # can build makes `nix flake check --all-systems` fail with "platform
+      # mismatch" rather than skip it.
       systems = [
         "x86_64-linux"
         "aarch64-darwin"
       ];
-      forAllSystems = nixpkgs.lib.genAttrs systems;
-      sourceRegistry = "${cl-weave}//:${self}//";
+
+      # The sb-cover HTML report, used as BOTH `packages.coverage` and
+      # `checks.coverage`. Spelled once as a function of `ctx` so the two
+      # attributes are literally the same derivation rather than two calls
+      # that happen to agree.
+      #
+      # `mkCoverageReport` owns the declaim/`:force t`/declaim dance
+      # `coverage.lisp` used to hand-write: instrumentation is a COMPILE-time
+      # property, so only code compiled while `store-coverage-data` is
+      # proclaimed records anything, and the derivation's own buildPhase
+      # already compiled cl-history-kit without it. `:force t` is therefore
+      # correctness, not a performance knob -- without it ASDF finds the
+      # existing fasls current and the report comes back empty.
+      #
+      # `entryPoint` defaults to `run-tests.lisp`, the same file
+      # `checks.default` and `apps.test` already drive, so the suite that
+      # generates the report is the suite everything else runs. This does NOT
+      # gate on a coverage percentage: the report exists to make the number
+      # visible and trending, not to block merges on a threshold nobody has
+      # agreed to yet -- see docs/src/contributing.md's Coverage section for
+      # why the raw expression percentage cannot reach 100.
+      coverageReport =
+        ctx:
+        ctx.cl.mkCoverageReport {
+          drv = ctx.package;
+          name = "cl-history-kit-coverage";
+          timeoutSeconds = 120;
+          killAfterSeconds = 15;
+        };
+
+      # `nix run .#benchmark`: first prefix lookup, cached `history-previous`
+      # navigation, a merge into a full bounded history, and recording into a
+      # full `:keep` history. Package the script through the same dependency
+      # environment `lispScript` gives any other entry point, rather than
+      # benchmark.lisp re-deriving its own source registry as it did under
+      # the hand-written flake.
+      benchmarkApp =
+        ctx:
+        ctx.cl.mkApp {
+          drv = ctx.cl.lispScript {
+            name = "cl-history-kit-benchmark";
+            src = ./benchmark.lisp;
+            dependencies = [ ctx.package ];
+          };
+          description = "Benchmark history lookup, navigation, bounded merges, and :KEEP recording";
+        };
+    in
+    # `mkPackageFlake` spans systems -- it obtains a `pkgs` and its own
+    # cl-nix-forge instance per entry in `systems` -- so the per-system `lib`
+    # this function is taken from contributes nothing but the function itself.
+    cl-nix-forge.lib.${builtins.head systems}.mkPackageFlake {
+      inherit self systems nixpkgs;
+
+      pname = "cl-history-kit";
 
       # Single source of truth for the package version: the `:version` form in
       # cl-history-kit.asd. A release only ever edits the .asd file and every
-      # Nix derivation below follows automatically, so the flake can no longer
-      # disagree with the .asd the way cl-cc does (flake 0.8.0, asd 0.1.0, tag
-      # v0.1.0). Nix regexes are whole-string anchored and `.` never spans
-      # newlines, so the version is extracted line-by-line rather than with one
-      # multi-line match. The first matching line wins, which is the main
-      # system's -- the test system repeats the same version below it.
-      version =
-        let
-          lines = nixpkgs.lib.splitString "\n" (builtins.readFile ./cl-history-kit.asd);
-          versionLine = builtins.head (
-            builtins.filter (line: builtins.match "[[:space:]]*:version \"[^\"]*\"" line != null) lines
-          );
-        in
-        builtins.head (builtins.match "[[:space:]]*:version \"([^\"]*)\"" versionLine);
+      # derivation carrying a version -- the package, the docs site, and both
+      # store paths -- follows automatically. There is deliberately no
+      # `version` argument to pass.
+      asd = ./cl-history-kit.asd;
 
-      # treefmt drives `nix fmt` and the `checks.<system>.formatting` gate.
-      # Scope is Nix only: nixfmt (RFC-style) is a zero-footgun, low-diff
-      # formatter, whereas YAML formatters mangle the GitHub Actions `on:`
-      # key and Markdown reformatting would churn the whole docs tree --
-      # neither is "low-cost", so both are intentionally left out.
-      treefmtEval = forAllSystems (
-        system:
-        treefmt-nix.lib.evalModule nixpkgs.legacyPackages.${system} {
-          projectRootFile = "flake.nix";
-          programs.nixfmt.enable = true;
-        }
-      );
-    in
-    {
-      packages = forAllSystems (
-        system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system};
-        in
-        rec {
-          cl-history-kit = pkgs.sbcl.buildASDFSystem {
-            pname = "cl-history-kit";
-            inherit version;
-            src = self;
-            systems = [ "cl-history-kit" ];
-          };
-          default = cl-history-kit;
+      # Spelled out rather than left to `mkPackageFlake`'s documented default
+      # of `self`, because that default does not evaluate: a flake's `self` is
+      # an attrset with an `outPath`, and `lib.fileset` refuses string-like
+      # values. `./.` is the same directory as a path literal. `self` is still
+      # what the preset hands the treefmt gate, which wants the UNFILTERED
+      # tree and takes a store path happily.
+      root = ./.;
 
-          # Rendered documentation site (Material for MkDocs).
-          # Build fully offline: Material for MkDocs bundles all of its assets,
-          # so no network access is required inside the Nix sandbox. --strict
-          # promotes broken links and unlisted pages to build failures.
-          docs = pkgs.stdenvNoCC.mkDerivation {
-            pname = "cl-history-kit-docs";
-            inherit version;
-            src = pkgs.lib.fileset.toSource {
-              root = ./docs;
-              fileset = pkgs.lib.fileset.unions [
-                ./docs/mkdocs.yml
-                ./docs/src
-              ];
-            };
-            nativeBuildInputs = [ pkgs.python3Packages.mkdocs-material ];
-            buildPhase = ''
-              runHook preBuild
-              mkdocs build --strict --config-file mkdocs.yml --site-dir "$out"
-              runHook postBuild
-            '';
-            dontInstall = true;
-            meta = {
-              description = "Rendered MkDocs (Material) documentation for cl-history-kit";
-              homepage = "https://github.com/nerima-lisp/cl-history-kit";
-              license = pkgs.lib.licenses.mit;
-            };
-          };
+      meta = {
+        description = "Dependency-free command-history store, search, and recall navigation for Common Lisp";
+        homepage = "https://github.com/nerima-lisp/cl-history-kit";
+        license = nixpkgs.lib.licenses.mit;
+        platforms = nixpkgs.lib.platforms.unix;
+      };
 
-          # sb-cover / cl-weave branch-and-expression coverage report for
-          # src/, reproducing what `coverage.lisp` does locally as a buildable
-          # artifact. Not wired into `checks`: the raw expression percentage
-          # cannot reach 100 for reasons documented in
-          # docs/src/contributing.md's "Coverage" section (IN-PACKAGE forms,
-          # DEFSTRUCT slot options, and DEFMACRO bodies are not independently
-          # steppable), so gating on that number would be a false signal
-          # rather than a real regression check.
-          coverage = pkgs.stdenvNoCC.mkDerivation {
-            pname = "cl-history-kit-coverage";
-            inherit version;
-            src = self;
-            nativeBuildInputs = [ pkgs.sbcl ];
-            CL_SOURCE_REGISTRY = sourceRegistry;
-            buildPhase = ''
-              runHook preBuild
-              export HOME="$TMPDIR/home"
-              mkdir -p "$HOME" "$out"
-              timeout 120 sbcl --script ${self}/coverage.lisp "$out"
-              runHook postBuild
-            '';
-            dontInstall = true;
-            meta = {
-              description = "sb-cover / cl-weave coverage report for cl-history-kit's src/";
-              homepage = "https://github.com/nerima-lisp/cl-history-kit";
-              license = pkgs.lib.licenses.mit;
-            };
-          };
-        }
-      );
+      # cl-weave is a dependency of `cl-history-kit/test` and of nothing else
+      # (see cl-history-kit.asd), so it is a CHECK dependency: it must not
+      # enter the library's closure or the overlay's `pkgs.cl-history-kit`.
+      # These are BUILT DERIVATIONS, never CL_SOURCE_REGISTRY strings --
+      # assembling that registry is cl-nix-forge's job and it does it
+      # transitively, which is what replaces the hand-rolled
+      # `"${cl-weave}//:${self}//"` this file used to thread through the
+      # check, the app and the devShell separately.
+      #
+      # `packages.*.cl-weave` is cl-weave's ASDF SYSTEM, built by cl-weave's
+      # own flake -- a different output from its `packages.*.default`, which
+      # is the delivered CLI. Taking the system means this repository never
+      # compiles cl-weave itself.
+      lispCheckDependencies = ctx: [ cl-weave.packages.${ctx.system}.cl-weave ];
 
-      # `nix fmt` entry point.
-      formatter = forAllSystems (system: treefmtEval.${system}.config.build.wrapper);
+      # Drives BOTH `checks.default` and `apps.test`, from this one number, so
+      # the command a contributor runs by hand and the gate CI runs cannot
+      # drift apart. `killAfterSeconds` sends SIGKILL 15s after the SIGTERM
+      # deadline, so a hanging test fails with a clear timeout status instead
+      # of outliving the deadline and running to the platform default.
+      timeoutSeconds = 120;
+      killAfterSeconds = 15;
 
-      checks = forAllSystems (
-        system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system};
-        in
-        {
-          default =
-            pkgs.runCommand "cl-history-kit-tests"
-              {
-                nativeBuildInputs = [
-                  pkgs.sbcl
-                  pkgs.coreutils
-                ];
-                CL_SOURCE_REGISTRY = sourceRegistry;
-              }
-              ''
-                export HOME="$TMPDIR/home"
-                mkdir -p "$HOME" "$out"
-                timeout 120 sbcl --script ${self}/run-tests.lisp
-                touch "$out/passed"
-              '';
+      # docs/mkdocs.yml + docs/src/, built with `--strict` so a broken link or
+      # a page missing from the nav is a build failure. `checks.docs` comes
+      # with it, and is the point: without that gate the docs are only ever
+      # built by the publish workflow, which runs after a merge to main --
+      # meaning such a break surfaces as a failed deploy rather than as a
+      # failed pull request. Material for MkDocs bundles all of its assets,
+      # so the build needs no network access inside the Nix sandbox.
+      docs.root = ./docs;
 
-          # Fails `nix flake check` when any tracked file is unformatted,
-          # turning the formatter into an enforced CI gate.
-          formatting = treefmtEval.${system}.config.build.check self;
+      # ONE treefmt evaluation drives `nix fmt` and the `checks.formatting`
+      # gate, so the formatter and CI can never disagree about what
+      # "formatted" means. `evalModule` is passed in rather than closed over
+      # so this repository picks its own treefmt-nix version. Scope stays Nix
+      # only: nixfmt (RFC-style) is a zero-footgun, low-diff formatter,
+      # whereas a YAML formatter mangles the GitHub Actions `on:` key and
+      # Markdown reformatting would churn the whole docs tree for no
+      # reviewable gain.
+      treefmt.evalModule = treefmt-nix.lib.evalModule;
 
-          # The docs package builds with `mkdocs --strict`, so a broken link or
-          # a page missing from the nav fails the build. Without this the docs
-          # are only ever built by the publish workflow, which runs after a
-          # merge to main, meaning such a break surfaces as a failed deploy
-          # rather than as a failed pull request.
-          docs = self.packages.${system}.docs;
-        }
-      );
+      # Granularity lives here, NOT in extra GitHub Actions jobs: `nix flake
+      # check` evaluates each attribute as its own derivation, in parallel,
+      # with build caching.
+      extraOutputs = ctx: {
+        packages.coverage = coverageReport ctx;
+        checks.coverage = coverageReport ctx;
 
-      apps = forAllSystems (
-        system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system};
-          test = pkgs.writeShellApplication {
-            name = "cl-history-kit-test";
-            runtimeInputs = [
-              pkgs.sbcl
-              pkgs.coreutils
-            ];
-            text = ''
-              export CL_SOURCE_REGISTRY="${sourceRegistry}"
-              exec timeout 120 sbcl --script ${self}/run-tests.lisp
-            '';
-          };
-          coverage = pkgs.writeShellApplication {
-            name = "cl-history-kit-coverage";
-            runtimeInputs = [
-              pkgs.sbcl
-              pkgs.coreutils
-            ];
-            text = ''
-              export CL_SOURCE_REGISTRY="${sourceRegistry}"
-              out="''${1:-$(mktemp -d)}"
-              timeout 120 sbcl --script ${self}/coverage.lisp "$out"
-              echo "coverage report: $out/coverage/cover-index.html"
-            '';
-          };
-        in
-        # `meta.description` on each app is what `nix flake show` lists and
-        # what stops `nix flake check` warning that the app lacks it.
-        {
-          default = {
-            type = "app";
-            program = "${test}/bin/cl-history-kit-test";
-            meta.description = "Run the cl-history-kit test suite";
-          };
-          test = {
-            type = "app";
-            program = "${test}/bin/cl-history-kit-test";
-            meta.description = "Run the cl-history-kit test suite";
-          };
-          coverage = {
-            type = "app";
-            program = "${coverage}/bin/cl-history-kit-coverage";
-            meta.description = "Write the sb-cover report for cl-history-kit's src/";
-          };
-        }
-      );
-
-      devShells = forAllSystems (
-        system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system};
-        in
-        {
-          default = pkgs.mkShell {
-            packages = [ pkgs.sbcl ];
-            CL_SOURCE_REGISTRY = sourceRegistry;
-          };
-        }
-      );
+        apps.benchmark = benchmarkApp ctx;
+      };
     };
 }
