@@ -51,6 +51,9 @@ Signals `type-error` on a wrong-typed argument.
 (history-entry-text entry) → string
 ```
 
+Returns a fresh string. Mutating that result cannot change the entry stored in
+the history.
+
 ### `history-entry-timestamp`
 
 ```lisp
@@ -103,6 +106,10 @@ The recorded text of each entry in `entries`, in order.
 The stored entries, newest first, as a **fresh** list. The entries themselves
 are shared, which is safe because they are immutable.
 
+The store keeps its bounded state in an internal ring; this accessor
+materializes the public snapshot. Use search and navigation APIs for hot read
+paths instead of repeatedly requesting snapshots.
+
 ### `history-count`
 
 ```lisp
@@ -140,6 +147,12 @@ are shared, which is safe because they are immutable.
 Record `text` as the newest entry. Honours the duplicate policy, evicts past
 capacity, and **resets navigation**. Returns two values: the store and the
 entry just recorded.
+
+With `:keep`, recording into a full history overwrites the oldest physical
+slot, so insertion remains constant time. Under `:remove`, an internal text
+index makes a new command constant time; only an existing command triggers a
+scan and in-place compaction of the retained ring buffer. That duplicate path
+takes O(n), but never allocates a public entry-list snapshot.
 
 ### `history-clear`
 
@@ -194,7 +207,10 @@ when that count is non-zero.
 
 Merge `source` — a history or a newest-first list of entries — into `target`,
 subject to `target`'s capacity and duplicate policy. Each entry keeps its
-original timestamp and exit code. Signals `type-error` for any other `source`.
+original timestamp and exit code. A capacity-safe `:keep` merge writes entries
+directly into the target ring; other merges first compute a bounded result so
+validation and duplicate removal remain atomic. Signals `type-error` for any
+other `source`.
 
 ---
 

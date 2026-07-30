@@ -144,6 +144,17 @@ loosely, one with an upper-case character matches exactly -- overriding
 `case-sensitive`. Pass `:smartcase nil` to control sensitivity explicitly
 through `case-sensitive` instead, the same override `history-search` accepts.
 
+## Performance model
+
+The first `history-previous` call evaluates the selected matcher over the
+history once and freezes the matching entries in newest-first order. Each later
+`history-previous` or `history-next` call indexes that vector in constant time;
+it does not rescan the history. Any successful history mutation resets the
+cursor, so the next walk always builds a current candidate set.
+
+Returned command text is a fresh string. Changing it cannot alter the entry
+stored in the history.
+
 ## Walking forward
 
 `history-next` steps one match back toward the newest end. Stepping past the

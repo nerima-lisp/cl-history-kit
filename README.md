@@ -67,12 +67,21 @@ the test system needs `cl-weave`.
 ```sh
 nix develop          # SBCL with CL_SOURCE_REGISTRY already set
 nix run .#test       # run the test suite
-nix flake check      # tests + formatting + docs, the same gate CI uses
+nix run .#benchmark  # measure lookup, navigation, bounded merge, and :KEEP recording throughput
+nix flake check      # packaged system + tests + coverage + formatting + docs
 nix fmt              # format Nix sources (treefmt)
 ```
 
 Tests live in `t/` and run under [cl-weave](https://github.com/nerima-lisp/cl-weave),
-the org's test framework; `sbcl --script run-tests.lisp` runs them without Nix.
+the org's test framework. Before running `sbcl --script run-tests.lisp` without
+Nix, make both `cl-history-kit` and `cl-weave` visible to ASDF.
+
+`nix run .#benchmark` reports first prefix lookup, cached `history-previous`
+navigation, a merge into a full bounded history, and recording into a full
+`:keep` history. The usual `:remove` policy uses an internal text index, so a
+new command does not scan retained entries; re-recording an existing command
+does compact the ring in place. Treat the output as a same-machine regression
+signal, not a cross-machine ranking.
 
 ## Contributing
 

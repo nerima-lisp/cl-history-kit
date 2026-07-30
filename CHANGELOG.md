@@ -15,11 +15,105 @@ and the date is ISO 8601. release.yml extracts the section matching the pushed
 tag as the GitHub Release body, so a heading that deviates makes the release
 fail. Keep `## [Unreleased]` at the top at all times.
 
-Use only these subsection names, and omit the ones that are empty:
-Added / Changed / Deprecated / Removed / Fixed / Security
+Use Keep a Changelog's own names where a change fits one --
+Added / Changed / Deprecated / Removed / Fixed / Security -- and omit the
+ones that are empty. This project's history also uses a few additional,
+consistently-named subsections for changes those six don't describe well:
+Performance, Packaging, Stability, Tests, Notes. Reuse one of those before
+inventing a new heading; every release above is precedent for what belongs
+under which one.
 -->
 
 ## [Unreleased]
+
+## [1.0.1] - 2026-07-31
+
+### Performance
+
+- The store's `entries` slot is now a fixed-capacity array ring buffer
+  (`head`/`count`-indexed) instead of a newest-first list, so `history-add`
+  no longer conses a new list spine on every recorded entry. A `texts`
+  hash-table index gives `history-add` an O(1) existence check for the
+  `:remove` duplicate policy; the O(current-history-size) scan that locates
+  the exact offset to displace now runs only on an actual hash hit, instead
+  of on every recorded entry regardless of whether it repeats one already
+  stored.
+
+### Changed
+
+- Navigation freezes matching entries once and uses constant-time vector
+  indexing for each subsequent previous/next operation.
+- Public entry and navigation text results are defensive copies; callers
+  cannot mutate the stored history through returned strings.
+- `history-delete`, `history-dedup`, and `history-delete-if` detect a
+  `HISTORY` mutation from within their own predicate or filtering pass (via
+  a `revision` counter bumped by every install) and signal an error instead
+  of installing a stale result over top of the concurrent change.
+- The ASDF dependency and Nix input now require `cl-weave` 1.1.0. Test and
+  coverage commands have a 120-second deadline plus a 15-second kill grace.
+- `history-previous` and `history-next`'s cached-match stepping collapses into
+  one shared `%history-step-cached-match` combinator that takes what happens
+  when a walk runs out of matches as a continuation argument -- stopping for
+  `history-previous`, restoring the preserved origin for `history-next` --
+  instead of two near-identical functions that differed only in that one
+  outcome.
+- `text.lisp` gains `with-each-line`, a binding-form macro over the existing
+  FUNCALL-based `%map-lines`: `%text-line-prefix-p` and `%text-line-suffix`
+  now read as a line-scanning loop rather than a lambda handed to a scanner
+  function, the same relationship `dolist` has to `mapc`.
+- `operations.lisp`'s merge machinery (`history-merge` and its two private
+  helpers) moves to its own `merge.lisp`: a merge folds a second history's
+  entries against the target's capacity and duplicate policy, which is a
+  distinct enough shape of problem, with its own private helpers, to no
+  longer share a file with the single-entry operations. `t/operations-test.lisp`
+  splits the same way into `t/merge-test.lisp`.
+- Every `define-checked-function` whose first check validates its own
+  principal argument -- eighteen of them, across `store.lisp`,
+  `operations.lisp`, `merge.lisp`, `search.lisp`, `navigation.lisp`, and
+  `entry.lisp` -- now goes through a new `define-typed-function`
+  (`src/boundary.lisp`), which supplies that one shared `(history history)`
+  or `(entry history-entry)` check from its own arguments. Only the two
+  constructors, which have no existing instance to check, stay on plain
+  `define-checked-function`.
+- `text.lisp`'s four case-aware predicates reduce to one `defmacro`,
+  `define-case-sensitive-predicate`: each is now a data declaration (its
+  bindings, guard, and case-sensitive/insensitive comparison forms) rather
+  than a hand-written `if case-sensitive ... else ...` repeated four times.
+
+### Packaging
+
+- `flake.nix` is now one [`cl-nix-forge`](https://github.com/nerima-lisp/cl-nix-forge)
+  `mkPackageFlake` call instead of a hand-rolled `.asd` version regex, package
+  set, check set, and app set. `cl-weave` moves to a `lispCheckDependencies`
+  entry (a built derivation cl-nix-forge resolves into `CL_SOURCE_REGISTRY`
+  transitively) instead of the raw flake-input source path this file used to
+  thread through the check, the app, and the devShell separately.
+- `coverage.lisp` is removed: `packages.coverage` / `checks.coverage` are now
+  `cl-nix-forge`'s `mkCoverageReport`, which owns the same
+  declaim/`:force t`/declaim `sb-cover` sequence the hand-written script did.
+  `nix run .#coverage` is removed with it -- the report is a package now, so
+  `nix build .#coverage` is the only way to produce one.
+- `benchmark.lisp` no longer bootstraps its own ASDF source registry;
+  `nix run .#benchmark` packages it through `cl-nix-forge`'s `lispScript`,
+  which already resolves `cl-history-kit` before the script runs.
+
+### Tests
+
+- The ring-buffer rewrite above left two branches of `history-merge`'s
+  `:REMOVE`-policy path uncovered: hitting capacity mid-merge, and merging
+  into a zero-capacity history. Both are asserted now, which also exposed a
+  redundant `(eq (%history-duplicate-policy target) :remove)` check inside
+  `%history-bounded-merge-entries` -- always true at its only call site,
+  since `history-merge` routes `:KEEP` targets through `%history-add-entry`
+  instead -- removed along with the dead `(or (null seen) ...)` branch it
+  gated. `operations.lisp` is back to 100% branch coverage.
+- `t/navigation-test.lisp`'s "explicit case sensitivity while walking" and
+  `t/search-test.lisp`'s "single-entry matching" mode table both move to
+  `it-each`, the parametrized-case form `cl-weave` already provides and this
+  suite already uses elsewhere (`t/navigation-test.lisp`'s "an explicit match
+  mode"): each case that shared a body and differed only in its literal
+  arguments is now one labeled row instead of assertions bundled under one
+  generic description, or a hand-copied `let`/`expect` block per case.
 
 ## [1.0.0] - 2026-07-25
 

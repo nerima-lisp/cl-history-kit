@@ -15,12 +15,14 @@
     | --- | --- |
     | `packages.<system>.cl-history-kit` | The ASDF system, built with SBCL |
     | `packages.<system>.docs` | This documentation site, built offline |
-    | `packages.<system>.coverage` | The `sb-cover` report for `src/` |
+    | `packages.<system>.coverage` | The `sb-cover` report for `src/`; `$out` **is** the report — `nix build .#coverage` |
     | `devShells.<system>.default` | SBCL with the source registry pre-set |
     | `checks.<system>.default` | The SBCL test suite |
+    | `checks.<system>.coverage` | The same `sb-cover` report, asserted non-empty |
     | `checks.<system>.formatting` | The treefmt (nixfmt) gate |
+    | `checks.<system>.docs` | Asserts the built docs site is non-empty |
     | `apps.<system>.test` | `nix run .#test` — the suite on its own |
-    | `apps.<system>.coverage` | `nix run .#coverage` — the report into a temp directory |
+    | `apps.<system>.benchmark` | `nix run .#benchmark` — lookup, navigation, merge, and `:keep` recording throughput |
 
     To depend on it from another flake, pinned to a release tag:
 
@@ -33,9 +35,9 @@
     }
     ```
 
-    Dropping the `/v1.0.0` tracks the default branch instead. Since 1.0.0 the
-    public API is frozen for the 1.x series — see
-    [Stability](scope.md#stability) — so a `v1` tag range is safe to follow.
+    The suffix is a Git ref, not a version range. Keep the complete, published
+    release tag to make builds reproducible; dropping `/v1.0.0` instead tracks
+    the default branch.
 
 === "ASDF"
 
@@ -80,7 +82,12 @@ implementations and platforms are expected to work, but are not gated on.
 sbcl --script run-tests.lisp
 ```
 
-or, through Nix, which additionally runs the formatting gate:
+For this direct command, ensure both `cl-history-kit` and the test dependency
+`cl-weave` are visible to ASDF first. `nix run .#test` configures that registry
+automatically.
+
+or, through Nix, which additionally builds the packaged system and runs the
+coverage, formatting, and documentation checks:
 
 ```sh
 nix flake check

@@ -10,6 +10,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-07-31
+
+### Performance
+
+- The store's `entries` slot is now a fixed-capacity array ring buffer
+  (`head`/`count`-indexed) instead of a newest-first list, so
+  [`history-add`](api-reference.md#history-add) no longer conses a new list
+  spine on every recorded entry. A `texts` hash-table index gives it an O(1)
+  existence check for the `:remove` duplicate policy; the
+  O(current-history-size) scan that locates the exact offset to displace now
+  runs only on an actual hash hit, instead of on every recorded entry
+  regardless of whether it repeats one already stored.
+
+### Changed
+
+- Navigation freezes matching entries once and uses constant-time vector
+  indexing for each subsequent previous/next operation.
+- Public entry and navigation text results are defensive copies; callers
+  cannot mutate the stored history through returned strings.
+- [`history-delete`](api-reference.md#history-delete),
+  [`history-dedup`](api-reference.md#history-dedup), and
+  [`history-delete-if`](api-reference.md#history-delete-if) detect a history
+  mutation from within their own predicate or filtering pass and signal an
+  error instead of installing a stale result over top of the concurrent
+  change.
+- The ASDF dependency and Nix input now require `cl-weave` 1.1.0. Test and
+  coverage commands have a 120-second deadline plus a 15-second kill grace.
+- [`history-previous`](api-reference.md#history-previous) and
+  [`history-next`](api-reference.md#history-next)'s cached-match stepping
+  collapses into one shared combinator that takes what happens when a walk
+  runs out of matches as an argument -- stopping for `history-previous`,
+  restoring the preserved origin for `history-next` -- instead of two
+  near-identical functions that differed only in that one outcome.
+- The internal line-scanning helper behind
+  [`history-entry-line-suffix`](api-reference.md#history-entry-line-suffix)
+  and `:LINE-PREFIX` matching gains a binding-form macro over its existing
+  callback-style scanner, the same relationship `dolist` has to `mapc`.
+- [`history-merge`](api-reference.md#history-merge)'s implementation moves to
+  its own file: a merge folds a second history's entries against the
+  target's capacity and duplicate policy, a distinct enough shape of problem
+  to no longer share a file with the single-entry operations.
+- Nearly every checked function's boundary validation begins by checking its
+  own principal argument (a history or an entry); a new internal macro
+  supplies that one shared check across eighteen call sites, instead of each
+  repeating it.
+- The four case-aware text predicates reduce to one internal macro: each is
+  now a data declaration of its guard and comparison forms rather than a
+  hand-written case-sensitive dispatch repeated four times.
+
+### Packaging
+
+- `flake.nix` is now one [`cl-nix-forge`](https://github.com/nerima-lisp/cl-nix-forge)
+  `mkPackageFlake` call instead of a hand-rolled `.asd` version regex, package
+  set, check set, and app set. `cl-weave` moves to a check-only dependency (a
+  built derivation `cl-nix-forge` resolves into the source registry
+  transitively) instead of the raw flake-input source path this file used to
+  thread through the check, the app, and the devShell separately.
+- `coverage.lisp` is removed: the coverage report is now `cl-nix-forge`'s own
+  `sb-cover` report package. `nix run .#coverage` is removed with it — the
+  report is a package now, so `nix build .#coverage` is the only way to
+  produce one.
+- `benchmark.lisp` no longer bootstraps its own ASDF source registry;
+  `nix run .#benchmark` packages it through `cl-nix-forge`, which already
+  resolves `cl-history-kit` before the script runs.
+
+### Tests
+
+- The ring-buffer rewrite above left two branches of
+  [`history-merge`](api-reference.md#history-merge)'s `:REMOVE`-policy path
+  uncovered: hitting capacity mid-merge, and merging into a zero-capacity
+  history. Both are asserted now, which also exposed a redundant internal
+  duplicate-policy check -- always true at its only call site, since
+  `history-merge` routes `:KEEP` targets through a different internal
+  path -- removed along with the dead branch it gated. `operations.lisp` is
+  back to 100% branch coverage; see [Coverage](contributing.md#coverage).
+- Two spec groups move to `it-each`, the parametrized-case form this suite
+  already uses elsewhere: each case that shared a body and differed only in
+  its literal arguments is now one labeled row instead of assertions bundled
+  under one generic description, or a hand-copied block per case.
+
 ## [1.0.0] - 2026-07-25
 
 First stable release. The public API is unchanged from 0.4.0 apart from the
