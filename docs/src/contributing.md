@@ -206,7 +206,9 @@ churn the docs tree. `nix flake check` fails on unformatted Nix.
    can be agreed before the work.
 2. Keep the commit focused; a rename and a behaviour change belong in separate
    commits.
-3. Update `CHANGELOG.md` under an `Unreleased` heading.
+3. Describe user-visible changes in the pull request body — that text is what
+   the next GitHub Release description is assembled from. This repository has
+   no `CHANGELOG.md`.
 4. Make sure `nix flake check` passes.
 
 ## Cutting a release
@@ -225,17 +227,23 @@ derivation follows the `.asd` automatically.
 
 Then:
 
-1. Add the release section to `CHANGELOG.md`, and mirror it into
-   `docs/src/changelog.md` — the root file is the source of truth, and the
-   docs page differs from it only by turning bare references into site links.
-   Use the heading format `## [X.Y.Z] - YYYY-MM-DD` exactly: `release.yml`
-   extracts that section as the GitHub Release body and fails when it finds
-   nothing.
+1. Write the release notes. They live in the GitHub Release description and
+   nowhere else — there is no `CHANGELOG.md` and no `docs/src/changelog.md`.
+   Select entries by "does a user of this package have to change their own
+   code", which is why the notes are not generated from commit titles.
 2. Run `nix flake check`. If `flake.nix` pins a new dependency version, commit
    the resulting `flake.lock` in the same change: a lock still resolving the
    previous pin means CI silently tests against the *old* dependency.
 3. Tag the release `vX.Y.Z`. `release.yml` runs on that push: it refuses the
    tag if it disagrees with the `.asd` version, re-runs `nix flake check`
-   against the tagged tree, and then publishes the release. The flake's own
-   `cl-weave` input is pinned to such a tag, so downstream flakes can pin this
-   one the same way.
+   against the tagged tree, and then opens a **draft** release with an empty
+   body. Paste the notes from step 1 in and publish it:
+
+   ```sh
+   gh release edit vX.Y.Z --notes-file notes.md --draft=false
+   ```
+
+   The draft is deliberate: an unpublished release appears neither under
+   "Latest release" nor in `gh release list`, so a release whose notes were
+   forgotten never reaches downstream. The flake's own `cl-weave` input is
+   pinned to such a tag, so downstream flakes can pin this one the same way.

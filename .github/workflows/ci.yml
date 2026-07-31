@@ -22,26 +22,19 @@ jobs:
   # scheduling and lose cache sharing between them.
   #
   # Add a second job ONLY for work the Nix sandbox cannot do: network access,
-  # a real PTY/TTY, artifact upload, or a different runner OS.
+  # a real PTY/TTY, or artifact upload.
   #
-  # The matrix is that last case -- a different runner OS -- not extra
-  # granularity. This flake declares two systems, and the org rule is that it
-  # never advertises a platform CI does not verify. `nix flake check` checks
-  # only the system it runs on, so ubuntu-latest covers x86_64-linux and
-  # macos-latest (arm64) covers aarch64-darwin. `--all-systems` is deliberately
-  # NOT passed: it would make each runner try to build the other's
-  # derivations. Keep this matrix and the flake's `systems` list in step.
+  # There used to be a two-entry matrix here (ubuntu-latest/x86_64-linux and
+  # macos-latest/aarch64-darwin), because the flake declared both systems and
+  # the org rule is that it never advertises a platform CI does not verify.
+  # The 2026-08-01 revision made the org Linux-only, so the flake now declares
+  # x86_64-linux alone and the matrix collapsed to a single entry. A one-entry
+  # matrix signals "more platforms are coming"; that signal is retired, so
+  # `runs-on` is spelled out directly. `--all-systems` is deliberately NOT
+  # passed: with one declared system it changes nothing.
   check:
-    name: nix flake check (${{ matrix.system }})
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: ubuntu-latest
-            system: x86_64-linux
-          - runner: macos-latest
-            system: aarch64-darwin
+    name: nix flake check
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       # persist-credentials: false — this job runs untrusted PR code via

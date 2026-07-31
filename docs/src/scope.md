@@ -132,4 +132,5 @@ These are implementation detail, and may change in any 1.x release:
   (as `history-merge`'s and `history-search`'s `:limit` do).
 
 A breaking change to anything in the first list means 2.0.0, and will be called
-out explicitly in the [changelog](changelog.md).
+out explicitly in the
+[release notes](https://github.com/nerima-lisp/cl-history-kit/releases).

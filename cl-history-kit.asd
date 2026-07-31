@@ -1,14 +1,22 @@
 ;;;; cl-history-kit.asd
+
+;;; This form comes FIRST, before any defsystem. ASDF binds *package* to
+;;; ASDF-USER only for a file it loads itself; read any other way -- a REPL
+;;; `load`, an editor evaluating the buffer, flake.nix parsing :version -- the
+;;; file is read in whatever package happens to be current. Saying it makes
+;;; the file self-contained.
+(in-package #:asdf-user)
+
 (asdf:defsystem "cl-history-kit"
   :description "Dependency-free command-history store, search, and recall navigation for Common Lisp"
   :long-description "A bounded, newest-first history of recorded input lines with
 duplicate policies, four search modes with smartcase, and the prefix-filtered recall
 cursor an Up/Down key pair drives -- including preservation of the in-progress input
 so stepping forward past the newest match restores exactly what the user had typed."
-  :version "1.0.1"
   :author "takeokunn <bararararatty@gmail.com>"
   :maintainer "takeokunn <bararararatty@gmail.com>"
   :license "MIT"
+  :version "1.0.1"
   :homepage "https://github.com/nerima-lisp/cl-history-kit"
   :bug-tracker "https://github.com/nerima-lisp/cl-history-kit/issues"
   :source-control (:git "https://github.com/nerima-lisp/cl-history-kit.git")
@@ -28,10 +36,10 @@ so stepping forward past the newest match restores exactly what the user had typ
 
 (asdf:defsystem "cl-history-kit/test"
   :description "Test system for cl-history-kit"
-  :version "1.0.1"
   :author "takeokunn <bararararatty@gmail.com>"
   :maintainer "takeokunn <bararararatty@gmail.com>"
   :license "MIT"
+  :version "1.0.1"
   :homepage "https://github.com/nerima-lisp/cl-history-kit"
   :bug-tracker "https://github.com/nerima-lisp/cl-history-kit/issues"
   :source-control (:git "https://github.com/nerima-lisp/cl-history-kit.git")
