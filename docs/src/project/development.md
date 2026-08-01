@@ -1,7 +1,15 @@
-# Contributing
+# Development
 
-Contributions are welcome. This page covers the development workflow, how to
-run the tests, and the conventions the codebase follows.
+This page covers the development environment, how to run the tests, and the
+conventions the codebase follows.
+
+How to propose a change, the code of conduct, and the support boundary are
+org-wide and live in the
+[nerima-lisp default community health files](https://github.com/nerima-lisp/.github):
+[CONTRIBUTING](https://github.com/nerima-lisp/.github/blob/main/CONTRIBUTING.md)
+for the workflow, and
+[RELEASE_STANDARD](https://github.com/nerima-lisp/.github/blob/main/RELEASE_STANDARD.md)
+for how a release is cut.
 
 ## Development environment
 
@@ -20,6 +28,21 @@ If you prefer a local SBCL, ensure `cl-history-kit` and (for the tests)
 ```lisp
 (asdf:load-system "cl-history-kit")
 ```
+
+### Flake outputs
+
+| Output | What it is |
+| --- | --- |
+| `packages.<system>.cl-history-kit` | The ASDF system, built with SBCL |
+| `packages.<system>.docs` | This documentation site, built offline |
+| `packages.<system>.coverage` | The `sb-cover` report for `src/`; `$out` **is** the report — `nix build .#coverage` |
+| `devShells.<system>.default` | SBCL with the source registry pre-set |
+| `checks.<system>.default` | The SBCL test suite |
+| `checks.<system>.coverage` | The same `sb-cover` report, asserted non-empty |
+| `checks.<system>.formatting` | The treefmt (nixfmt) gate |
+| `checks.<system>.docs` | Asserts the built docs site is non-empty |
+| `apps.<system>.test` | `nix run .#test` — the suite on its own |
+| `apps.<system>.benchmark` | `nix run .#benchmark` — lookup, navigation, merge, and `:keep` recording throughput |
 
 ## Running the tests
 
@@ -160,7 +183,7 @@ in the file whose concern it shares, and its specs in the matching `t/` file.
   plain `define-checked-function`. Internal (`%`-prefixed) helpers assume
   valid input and stay plain `defun`s.
 - **`nil` means "nothing happened".** No operation signals to report an
-  ordinary miss; see [Error Handling](error-handling.md).
+  ordinary miss; see [Conditions](../reference/conditions.md).
 - **One definition per rule.** Case sensitivity and smartcase are defined once
   in `text.lisp` and used by both search and navigation, so the two cannot
   drift apart on what counts as a match.
@@ -192,7 +215,7 @@ page must be added to the `nav:` section of `docs/mkdocs.yml`. Changes under
 `docs/` publish to GitHub Pages automatically on push to `main`.
 
 Public API changes need three edits in the same commit: the docstring, the
-relevant guide page, and [`api-reference.md`](api-reference.md).
+relevant guide page, and [`reference/api.md`](../reference/api.md).
 
 ## Formatting
 
@@ -200,50 +223,3 @@ relevant guide page, and [`api-reference.md`](api-reference.md).
 formatters mangle the GitHub Actions `on:` key, and Markdown reformatting would
 churn the docs tree. `nix flake check` fails on unformatted Nix.
 
-## Submitting a change
-
-1. Open an issue first for anything that changes the public API, so the shape
-   can be agreed before the work.
-2. Keep the commit focused; a rename and a behaviour change belong in separate
-   commits.
-3. Describe user-visible changes in the pull request body — that text is what
-   the next GitHub Release description is assembled from. This repository has
-   no `CHANGELOG.md`.
-4. Make sure `nix flake check` passes.
-
-## Cutting a release
-
-Since 1.0.0 the library follows [SemVer](https://semver.org/), and its
-exported surface is frozen for the 1.x series — see
-[Stability](scope.md#stability) for exactly what that covers. A change that
-would break it is a 2.0.0, not a 1.x, and needs the issue from step 1 above
-before any code is written.
-
-`cl-history-kit.asd` is the only place the version string is edited: the
-`:version` of `cl-history-kit` and of `cl-history-kit/test`. `flake.nix` reads
-it via `cl-nix-forge`'s `fromAsdSystem`, which requires both systems'
-`:version` forms to agree and fails loudly if they ever drift, so every Nix
-derivation follows the `.asd` automatically.
-
-Then:
-
-1. Write the release notes. They live in the GitHub Release description and
-   nowhere else — there is no `CHANGELOG.md` and no `docs/src/changelog.md`.
-   Select entries by "does a user of this package have to change their own
-   code", which is why the notes are not generated from commit titles.
-2. Run `nix flake check`. If `flake.nix` pins a new dependency version, commit
-   the resulting `flake.lock` in the same change: a lock still resolving the
-   previous pin means CI silently tests against the *old* dependency.
-3. Tag the release `vX.Y.Z`. `release.yml` runs on that push: it refuses the
-   tag if it disagrees with the `.asd` version, re-runs `nix flake check`
-   against the tagged tree, and then opens a **draft** release with an empty
-   body. Paste the notes from step 1 in and publish it:
-
-   ```sh
-   gh release edit vX.Y.Z --notes-file notes.md --draft=false
-   ```
-
-   The draft is deliberate: an unpublished release appears neither under
-   "Latest release" nor in `gh release list`, so a release whose notes were
-   forgotten never reaches downstream. The flake's own `cl-weave` input is
-   pinned to such a tag, so downstream flakes can pin this one the same way.

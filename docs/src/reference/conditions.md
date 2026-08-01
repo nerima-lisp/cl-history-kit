@@ -1,4 +1,4 @@
-# Error Handling
+# Conditions
 
 `cl-history-kit` defines **no condition types of its own**. Invalid
 arguments signal standard conditions, and no operation signals to report an
@@ -58,14 +58,14 @@ These are ordinary results, not conditions:
 
 The consistent use of `nil` for "nothing happened" is what lets a key handler
 be written as `(or (history-previous ...) buffer)` — see
-[Recall Navigation](navigation.md).
+[Recall Navigation](../guide/navigation.md).
 
 !!! note "`nil` versus `\"\"` in `history-entry-line-suffix`"
 
     `history-entry-line-suffix` is the one place where an empty string and
     `nil` mean different things: `nil` is "no line matched" and `""` is "a line
     is exactly the query, so there is nothing left to suggest". See
-    [Search](search.md).
+    [Search](../guide/search.md).
 
 ## Guarding untrusted input
 

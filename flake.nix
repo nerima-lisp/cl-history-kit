@@ -80,7 +80,7 @@
       # generates the report is the suite everything else runs. This does NOT
       # gate on a coverage percentage: the report exists to make the number
       # visible and trending, not to block merges on a threshold nobody has
-      # agreed to yet -- see docs/src/contributing.md's Coverage section for
+      # agreed to yet -- see docs/src/project/development.md's Coverage section for
       # why the raw expression percentage cannot reach 100.
       coverageReport =
         ctx:

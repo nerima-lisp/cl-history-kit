@@ -54,12 +54,11 @@ the test system needs `cl-weave`.
 
 ## Documentation
 
-- [Installation](https://nerima-lisp.github.io/cl-history-kit/installation/)
-- [Quick Start](https://nerima-lisp.github.io/cl-history-kit/quick-start/)
-- [Recall Navigation](https://nerima-lisp.github.io/cl-history-kit/navigation/)
+- [Getting Started](https://nerima-lisp.github.io/cl-history-kit/getting-started/)
+- [Recall Navigation](https://nerima-lisp.github.io/cl-history-kit/guide/navigation/)
   — the frozen filter, wraparound, and wiring the cursor to keys
-- [API Reference](https://nerima-lisp.github.io/cl-history-kit/api-reference/)
-- [Scope and Non-Goals](https://nerima-lisp.github.io/cl-history-kit/scope/)
+- [API Reference](https://nerima-lisp.github.io/cl-history-kit/reference/api/)
+- [Scope and Non-Goals](https://nerima-lisp.github.io/cl-history-kit/project/scope/)
   — what is deliberately left to the host, and the 1.x stability promise
 
 ## Development

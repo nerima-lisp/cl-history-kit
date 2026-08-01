@@ -120,17 +120,15 @@ markdown_extensions:
       title: On this page
 
 nav:
-  - Home: README.md
-  - Getting Started:
-      - Installation: installation.md
-      - Quick Start: quick-start.md
+  - Home: index.md
+  - Getting Started: getting-started.md
   - Guide:
-      - Entries and the Store: store.md
-      - Search: search.md
-      - Recall Navigation: navigation.md
-      - Error Handling: error-handling.md
+      - Entries and the Store: guide/store.md
+      - Search: guide/search.md
+      - Recall Navigation: guide/navigation.md
   - Reference:
-      - API Reference: api-reference.md
-      - Scope and Non-Goals: scope.md
+      - API: reference/api.md
+      - Conditions: reference/conditions.md
   - Project:
-      - Contributing: contributing.md
+      - Development: project/development.md
+      - Scope and Non-Goals: project/scope.md

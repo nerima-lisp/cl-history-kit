@@ -1,4 +1,83 @@
-# Quick Start
+# Getting Started
+
+`cl-history-kit` has no runtime dependencies. The test system additionally uses
+[cl-weave](https://github.com/nerima-lisp/cl-weave).
+
+## Install
+
+=== "Nix flake"
+
+    ```sh
+    nix build github:nerima-lisp/cl-history-kit
+    ```
+
+    To depend on it from another flake, pinned to a release tag:
+
+    ```nix
+    {
+      inputs.cl-history-kit = {
+        url = "github:nerima-lisp/cl-history-kit/v1.0.0";
+        inputs.nixpkgs.follows = "nixpkgs";
+      };
+    }
+    ```
+
+    The suffix is a Git ref, not a version range. Keep the complete, published
+    release tag to make builds reproducible; dropping `/v1.0.0` instead tracks
+    the default branch.
+
+    [Development](project/development.md#flake-outputs) lists every output the
+    flake exposes.
+
+=== "ASDF"
+
+    Put the repository somewhere ASDF looks — `~/common-lisp/`, a Quicklisp
+    `local-projects/` directory, or a path on `CL_SOURCE_REGISTRY` — then load
+    it:
+
+    ```lisp
+    (asdf:load-system "cl-history-kit")
+    ```
+
+    Everything public lives in the `history-kit` package:
+
+    ```lisp
+    (history-kit:make-history :capacity 500)
+    ```
+
+    If you would rather not prefix every call, import the symbols you use:
+
+    ```lisp
+    (defpackage #:my-repl
+      (:use #:cl)
+      (:import-from #:history-kit
+       #:make-history #:history-add
+       #:history-previous #:history-next))
+    ```
+
+## Supported implementations
+
+The library is portable Common Lisp: standard sequence, string, and hash-table
+operations only, with no implementation-specific code and no feature
+conditionals.
+
+CI builds and tests SBCL on `x86_64-linux`, so that is the combination with a
+continuous guarantee, and it is exactly what the flake declares — it never
+advertises a platform it does not verify. `aarch64-darwin` was dropped on
+2026-08-01, which means `nix develop` and `nix build` no longer work on macOS.
+Other implementations and platforms are expected to work, but are not gated
+on.
+
+## Verifying the installation
+
+```sh
+sbcl --script run-tests.lisp
+```
+
+For this direct command, ensure both `cl-history-kit` and the test dependency
+`cl-weave` are visible to ASDF first; `nix run .#test` configures that registry
+automatically. `nix flake check` additionally builds the packaged system and
+runs the coverage, formatting, and documentation checks.
 
 ## Record some entries
 
@@ -31,7 +110,7 @@ leaving a stale copy behind:
 
 That is the default `:remove` duplicate policy. Pass
 `:duplicate-policy :keep` at construction for an exact chronological log
-instead — see [Entries and the Store](store.md).
+instead — see [Entries and the Store](guide/store.md).
 
 ## Search
 
@@ -106,11 +185,12 @@ handling:
 
 Note that `history-add` resets navigation on its own: recording an entry shifts
 every index, so a cursor left over from before would silently point somewhere
-else. See [Recall Navigation](navigation.md) for the full set of reset triggers.
+else. See [Recall Navigation](guide/navigation.md) for the full set of reset
+triggers.
 
 ## Where to next
 
-- [Entries and the Store](store.md) — capacity, duplicate policies, merging
-- [Search](search.md) — the four modes and smartcase in detail
-- [Recall Navigation](navigation.md) — the cursor semantics in full
-- [API Reference](api-reference.md) — every exported symbol
+- [Entries and the Store](guide/store.md) — capacity, duplicate policies, merging
+- [Search](guide/search.md) — the four modes and smartcase in detail
+- [Recall Navigation](guide/navigation.md) — the cursor semantics in full
+- [API Reference](reference/api.md) — every exported symbol

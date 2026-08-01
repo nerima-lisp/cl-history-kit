@@ -2,7 +2,7 @@
 
 Every symbol below is exported from the `history-kit` package. Nothing else is
 public; internal helpers carry a leading `%` and stay unexported. This surface
-is frozen for the 1.x series — see [Stability](scope.md#stability).
+is frozen for the 1.x series — see [Stability](../project/scope.md#stability).
 
 Parameters listed as `boolean` below are *generalized* booleans in the Common
 Lisp sense: any non-`nil` value counts as true.
@@ -89,7 +89,7 @@ The recorded text of each entry in `entries`, in order.
 | Parameter | Type | Default | Meaning |
 | --- | --- | --- | --- |
 | `capacity` | `(integer 0 *)` | `10000` | Maximum entries retained |
-| `duplicate-policy` | `:remove` or `:keep` | `:remove` | See [Entries and the Store](store.md#duplicate-policy) |
+| `duplicate-policy` | `:remove` or `:keep` | `:remove` | See [Entries and the Store](../guide/store.md#duplicate-policy) |
 
 ### `history-p`
 
@@ -225,7 +225,7 @@ other `source`.
 | Parameter | Type | Default | Meaning |
 | --- | --- | --- | --- |
 | `query` | `string` | — | The text to match |
-| `mode` | `:prefix`, `:exact`, `:contains`, `:line-prefix` | `:prefix` | See [Search](search.md#modes) |
+| `mode` | `:prefix`, `:exact`, `:contains`, `:line-prefix` | `:prefix` | See [Search](../guide/search.md#modes) |
 | `smartcase` | boolean | `t` | Derive sensitivity from `query`; overrides `case-sensitive` |
 | `case-sensitive` | boolean | `nil` | Used only when `smartcase` is `nil` |
 | `limit` | `(integer 0 *)` or `nil` | `nil` | Cap the result to at most this many of the newest matches |
@@ -315,31 +315,31 @@ Abandon any active walk.
 
 | Symbol | Kind | Page |
 | --- | --- | --- |
-| `history` | type | [Store](store.md) |
-| `history-add` | function | [Store](store.md#recording) |
-| `history-capacity` | function | [Store](store.md#reading-a-store) |
-| `history-clear` | function | [Store](store.md#removing) |
-| `history-count` | function | [Store](store.md#reading-a-store) |
-| `history-dedup` | function | [Store](store.md#removing) |
-| `history-delete` | function | [Store](store.md#removing) |
-| `history-delete-if` | function | [Store](store.md#removing) |
-| `history-duplicate-policy` | function | [Store](store.md#reading-a-store) |
-| `history-empty-p` | function | [Store](store.md#reading-a-store) |
-| `history-entries` | function | [Store](store.md#reading-a-store) |
-| `history-entry` | type | [Store](store.md#entries) |
-| `history-entry-exit-code` | function | [Store](store.md#entries) |
-| `history-entry-line-suffix` | function | [Search](search.md#autosuggestion) |
-| `history-entry-match-p` | function | [Search](search.md#matching-a-single-entry) |
-| `history-entry-p` | function | [Store](store.md#entries) |
-| `history-entry-text` | function | [Store](store.md#entries) |
-| `history-entry-texts` | function | [Store](store.md#entries) |
-| `history-entry-timestamp` | function | [Store](store.md#entries) |
-| `history-merge` | function | [Store](store.md#merging) |
-| `history-navigating-p` | function | [Navigation](navigation.md#ending-a-walk) |
-| `history-next` | function | [Navigation](navigation.md#walking-forward) |
-| `history-p` | function | [Store](store.md) |
-| `history-previous` | function | [Navigation](navigation.md#walking-backward) |
-| `history-reset-navigation` | function | [Navigation](navigation.md#ending-a-walk) |
-| `history-search` | function | [Search](search.md) |
-| `make-history` | function | [Store](store.md#creating-a-store) |
-| `make-history-entry` | function | [Store](store.md#entries) |
+| `history` | type | [Store](../guide/store.md) |
+| `history-add` | function | [Store](../guide/store.md#recording) |
+| `history-capacity` | function | [Store](../guide/store.md#reading-a-store) |
+| `history-clear` | function | [Store](../guide/store.md#removing) |
+| `history-count` | function | [Store](../guide/store.md#reading-a-store) |
+| `history-dedup` | function | [Store](../guide/store.md#removing) |
+| `history-delete` | function | [Store](../guide/store.md#removing) |
+| `history-delete-if` | function | [Store](../guide/store.md#removing) |
+| `history-duplicate-policy` | function | [Store](../guide/store.md#reading-a-store) |
+| `history-empty-p` | function | [Store](../guide/store.md#reading-a-store) |
+| `history-entries` | function | [Store](../guide/store.md#reading-a-store) |
+| `history-entry` | type | [Store](../guide/store.md#entries) |
+| `history-entry-exit-code` | function | [Store](../guide/store.md#entries) |
+| `history-entry-line-suffix` | function | [Search](../guide/search.md#autosuggestion) |
+| `history-entry-match-p` | function | [Search](../guide/search.md#matching-a-single-entry) |
+| `history-entry-p` | function | [Store](../guide/store.md#entries) |
+| `history-entry-text` | function | [Store](../guide/store.md#entries) |
+| `history-entry-texts` | function | [Store](../guide/store.md#entries) |
+| `history-entry-timestamp` | function | [Store](../guide/store.md#entries) |
+| `history-merge` | function | [Store](../guide/store.md#merging) |
+| `history-navigating-p` | function | [Navigation](../guide/navigation.md#ending-a-walk) |
+| `history-next` | function | [Navigation](../guide/navigation.md#walking-forward) |
+| `history-p` | function | [Store](../guide/store.md) |
+| `history-previous` | function | [Navigation](../guide/navigation.md#walking-backward) |
+| `history-reset-navigation` | function | [Navigation](../guide/navigation.md#ending-a-walk) |
+| `history-search` | function | [Search](../guide/search.md) |
+| `make-history` | function | [Store](../guide/store.md#creating-a-store) |
+| `make-history-entry` | function | [Store](../guide/store.md#entries) |

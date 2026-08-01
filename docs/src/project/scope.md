@@ -47,7 +47,7 @@ A future release may add a persistence layer if the hosts converge on a format.
 The library has no opinion about keys. `history-previous` and `history-next`
 are ordinary functions; binding them to ++arrow-up++ and ++arrow-down++, or to
 ++ctrl+p++ and ++ctrl+n++, is the host's business. See the key-handler sketch
-in [Recall Navigation](navigation.md#wiring-it-to-keys).
+in [Recall Navigation](../guide/navigation.md#wiring-it-to-keys).
 
 ### Shell-specific parsing of entry text
 
@@ -125,7 +125,7 @@ These are implementation detail, and may change in any 1.x release:
   by two separate calls is `eq`, or that it is safe to destructively modify.
 - The exact condition class and report string of a signalled error, beyond
   "a `type-error` for a wrong-typed argument, an `ecase` failure for an
-  unknown mode" — see [Error Handling](error-handling.md). Notably, `ecase`'s
+  unknown mode" — see [Conditions](../reference/conditions.md). Notably, `ecase`'s
   `case-failure` is a `type-error` subtype on most implementations but is not
   required by the standard to be one.
 - Performance characteristics, except where a docstring states a complexity

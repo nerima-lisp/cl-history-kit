@@ -8,9 +8,9 @@ Up/Down key pair drives.
 Everything is portable Common Lisp with no runtime dependencies; only the test
 system uses [cl-weave](https://github.com/nerima-lisp/cl-weave).
 
-Start with [Installation](installation.md) and [Quick Start](quick-start.md),
-then move on to [Entries and the Store](store.md), [Search](search.md), and
-[Recall Navigation](navigation.md) for the full API surface.
+Start with [Getting Started](getting-started.md),
+then move on to [Entries and the Store](guide/store.md), [Search](guide/search.md), and
+[Recall Navigation](guide/navigation.md) for the full API surface.
 
 <div class="grid cards" markdown>
 
@@ -20,7 +20,7 @@ then move on to [Entries and the Store](store.md), [Search](search.md), and
 
     Install with Nix or ASDF and record your first entry in minutes.
 
-    [:octicons-arrow-right-24: Installation](installation.md)
+    [:octicons-arrow-right-24: Getting Started](getting-started.md)
 
 -   :material-book-open-variant: **Learn the API**
 
@@ -28,7 +28,7 @@ then move on to [Entries and the Store](store.md), [Search](search.md), and
 
     The store, entries, search modes, and the recall cursor.
 
-    [:octicons-arrow-right-24: Entries and the Store](store.md)
+    [:octicons-arrow-right-24: Entries and the Store](guide/store.md)
 
 -   :material-keyboard: **Wire up Up/Down**
 
@@ -36,7 +36,7 @@ then move on to [Entries and the Store](store.md), [Search](search.md), and
 
     The frozen filter and the preserved origin, and why they matter.
 
-    [:octicons-arrow-right-24: Recall Navigation](navigation.md)
+    [:octicons-arrow-right-24: Recall Navigation](guide/navigation.md)
 
 -   :material-format-list-bulleted: **Look something up**
 
@@ -44,7 +44,7 @@ then move on to [Entries and the Store](store.md), [Search](search.md), and
 
     Every exported symbol with its signature and return values.
 
-    [:octicons-arrow-right-24: API Reference](api-reference.md)
+    [:octicons-arrow-right-24: API Reference](reference/api.md)
 
 </div>
 
