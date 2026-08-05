@@ -38,15 +38,13 @@ recording it without corrupting the entry."
      (exit-code (or null integer)))
   (%make-history-entry (copy-seq text) timestamp exit-code))
 
-(define-typed-function history-entry-timestamp (entry history-entry)
+(define-typed-reader history-entry-timestamp (entry history-entry)
   "Return the universal-time timestamp recorded in ENTRY."
-  ()
-  (%history-entry-timestamp entry))
+  %history-entry-timestamp)
 
-(define-typed-function history-entry-exit-code (entry history-entry)
+(define-typed-reader history-entry-exit-code (entry history-entry)
   "Return the process exit code recorded in ENTRY, or NIL."
-  ()
-  (%history-entry-exit-code entry))
+  %history-entry-exit-code)
 
 (defun history-entry-texts (entries)
   "Return the recorded text of each entry in ENTRIES, in order."

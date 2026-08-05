@@ -14,7 +14,8 @@
 ;;;; checked function's first CHECKS entry validates its own principal
 ;;;; argument (a HISTORY or a HISTORY-ENTRY), so that shared entry becomes
 ;;;; data this macro supplies once rather than a literal each call site
-;;;; repeats.
+;;;; repeats.  DEFINE-TYPED-READER builds on THAT for the narrower case of a
+;;;; checked reader whose entire body is one forwarding call.
 (in-package #:history-kit)
 
 (defmacro define-checked-function (name lambda-list documentation (&rest checks) &body body)
@@ -51,3 +52,18 @@ lifted CHECK-TYPE out of each function's body."
   `(define-checked-function ,name (,var ,@extra-args) ,documentation
        ((,var ,type) ,@extra-checks)
      ,@body))
+
+(defmacro define-typed-reader (name (var type) documentation accessor)
+  "Define NAME as a DEFINE-TYPED-FUNCTION of VAR alone, whose entire BODY is
+the single call (ACCESSOR VAR).
+
+Six checked readers in this library -- three of HISTORY-ENTRY's slots, three
+of HISTORY's -- do nothing beyond that one forwarding call to a private
+accessor (or, for HISTORY-ENTRIES, to another internal function of the same
+one-argument shape). ACCESSOR is data here the same way CHECKS already is in
+DEFINE-CHECKED-FUNCTION: this macro exists only for that exact shape, so a
+reader that does anything else -- HISTORY-EMPTY-P computes ZEROP over a
+count, HISTORY-ENTRY-TEXT copies its result -- stays a DEFINE-TYPED-FUNCTION
+with its own body rather than being forced to fit here."
+  `(define-typed-function ,name (,var ,type) ,documentation ()
+     (,accessor ,var)))

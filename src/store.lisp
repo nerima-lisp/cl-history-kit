@@ -30,33 +30,21 @@
   ((capacity (integer 0 *)) (duplicate-policy (member :remove :keep)))
   (%make-history (make-array capacity) capacity duplicate-policy))
 
-(define-typed-function
-  history-entries
-  (history history)
+(define-typed-reader history-entries (history history)
   "Return the entries of HISTORY, newest first, as a fresh list."
-  ()
-  (%history-entry-list history))
+  %history-entry-list)
 
-(define-typed-function
-  history-capacity
-  (history history)
+(define-typed-reader history-capacity (history history)
   "Return the maximum number of entries HISTORY retains."
-  ()
-  (%history-capacity history))
+  %history-capacity)
 
-(define-typed-function
-  history-duplicate-policy
-  (history history)
+(define-typed-reader history-duplicate-policy (history history)
   "Return the duplicate policy of HISTORY: :REMOVE or :KEEP."
-  ()
-  (%history-duplicate-policy history))
+  %history-duplicate-policy)
 
-(define-typed-function
-  history-count
-  (history history)
+(define-typed-reader history-count (history history)
   "Return the number of entries currently stored in HISTORY."
-  ()
-  (%history-count history))
+  %history-count)
 
 (define-typed-function
   history-empty-p
