@@ -16,7 +16,7 @@ so stepping forward past the newest match restores exactly what the user had typ
   :author "takeokunn <bararararatty@gmail.com>"
   :maintainer "takeokunn <bararararatty@gmail.com>"
   :license "MIT"
-  :version "1.0.3"
+  :version "1.0.4"
   :homepage "https://github.com/nerima-lisp/cl-history-kit"
   :bug-tracker "https://github.com/nerima-lisp/cl-history-kit/issues"
   :source-control (:git "https://github.com/nerima-lisp/cl-history-kit.git")
@@ -39,7 +39,7 @@ so stepping forward past the newest match restores exactly what the user had typ
   :author "takeokunn <bararararatty@gmail.com>"
   :maintainer "takeokunn <bararararatty@gmail.com>"
   :license "MIT"
-  :version "1.0.3"
+  :version "1.0.4"
   :homepage "https://github.com/nerima-lisp/cl-history-kit"
   :bug-tracker "https://github.com/nerima-lisp/cl-history-kit/issues"
   :source-control (:git "https://github.com/nerima-lisp/cl-history-kit.git")
