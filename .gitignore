@@ -60,3 +60,5 @@ id_ed25519
 
 # Serena project cache (the tracked .serena/ config is kept)
 .serena/cache/
+
+.worktrees/
