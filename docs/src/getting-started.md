@@ -62,11 +62,12 @@ operations only, with no implementation-specific code and no feature
 conditionals.
 
 CI builds and tests SBCL on `x86_64-linux`, so that is the combination with a
-continuous guarantee, and it is exactly what the flake declares — it never
-advertises a platform it does not verify. `aarch64-darwin` was dropped on
-2026-08-01, which means `nix develop` and `nix build` no longer work on macOS.
-Other implementations and platforms are expected to work, but are not gated
-on.
+continuous guarantee. The flake also declares `aarch64-darwin` — `nix develop`
+and `nix build` work on Apple Silicon macOS — but that platform carries no CI
+gate, so treat it as supported for local development rather than continuously
+verified. `aarch64-darwin` was dropped on 2026-08-01 and restored the next day;
+see the flake's own `systems` comment for why. Other implementations and
+platforms are expected to work, but are not gated on.
 
 ## Verifying the installation
 
