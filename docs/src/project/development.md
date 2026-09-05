@@ -84,9 +84,8 @@ branch — every `if`, `cond`, `when`/`unless`, and the
 `navigation.lisp`, `operations.lisp`, `search.lisp`, and `text.lisp` each
 report 100% branch coverage.
 
-`store.lisp` is the one file whose *reported* branch percentage is low while
-still having every real behavioral branch covered, so read its number with
-care rather than treating it as a gap to close. Most of the uncovered
+`store.lisp` has a low *reported* branch percentage even though every real
+behavioral branch is covered. Most of the uncovered
 branches are the `:type` declarations on `defstruct history`'s slots —
 `(integer 0 *)`, `(member :remove :keep)`, `(or null vector)` and friends.
 `sb-cover` reports each as "neither branch taken": they are slot type checks
@@ -98,10 +97,8 @@ array. Every current caller already hands it a list bounded to `capacity` or
 smaller — `%purging` only ever shrinks a history's own entries,
 `%history-bounded-merge-entries` enforces the bound itself before returning,
 and `history-clear` passes none — so the guard's "exactly full" arm cannot
-fire without a caller first breaking that invariant. It stays as
-defense-in-depth for a private helper rather than being deleted to chase a
-cosmetic percentage. The HTML report marks all of this plainly, so if these
-numbers ever move, compare against the report before concluding anything.
+fire without a caller first breaking that invariant. It remains defense-in-depth
+for a private helper. The HTML report records this branch separately.
 
 `sb-cover` cannot mark three categories of form as "executed," even though the
 suite exercises the paths behind them, so the raw expression percentage sits
@@ -188,7 +185,7 @@ in the file whose concern it shares, and its specs in the matching `t/` file.
   in `text.lisp` and used by both search and navigation, so the two cannot
   drift apart on what counts as a match.
 - **Comment the *why*.** Docstrings state the contract; comments explain a
-  decision that is not obvious from the code — such as why `history-add` resets
+  decision that is unclear from the code — such as why `history-add` resets
   navigation.
 - No runtime dependencies. A change that would add one needs to justify itself
   against the library's central constraint.
@@ -222,4 +219,3 @@ relevant guide page, and [`reference/api.md`](../reference/api.md).
 `nix fmt` runs treefmt with nixfmt. Its scope is Nix files only — YAML
 formatters mangle the GitHub Actions `on:` key, and Markdown reformatting would
 churn the docs tree. `nix flake check` fails on unformatted Nix.
-

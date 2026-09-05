@@ -6,12 +6,9 @@
 
 `cl-history-kit` is a dependency-free command-history library for SBCL: a
 capacity-bounded store of recorded input lines, four search modes with
-smartcase, and the prefix-filtered recall cursor that an Up/Down key pair
-drives. It exists for the two details a hand-rolled list-with-a-cursor keeps
-losing — the filter stays frozen for the whole walk, even once the buffer shows
-a recalled command that no longer resembles the original prefix, and walking
-forward past the newest match hands back exactly what you had typed rather than
-an empty buffer.
+smartcase, and a prefix-filtered recall cursor for Up/Down key handling. The
+cursor keeps its filter for the whole walk and restores the original input when
+walking forward past the newest match.
 
 Full documentation is published at <https://nerima-lisp.github.io/cl-history-kit/>.
 The source for that site lives in [docs/src/](docs/src/).

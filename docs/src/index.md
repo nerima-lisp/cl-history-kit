@@ -34,7 +34,7 @@ then move on to [Entries and the Store](guide/store.md), [Search](guide/search.m
 
     ---
 
-    The frozen filter and the preserved origin, and why they matter.
+    The frozen filter and the preserved origin.
 
     [:octicons-arrow-right-24: Recall Navigation](guide/navigation.md)
 
@@ -48,26 +48,21 @@ then move on to [Entries and the Store](guide/store.md), [Search](guide/search.m
 
 </div>
 
-## Why a library for this?
+## Library guarantees
 
-Every interactive program eventually grows a history: a shell, a REPL, a
-multiplexer's command prompt. The list-with-a-cursor looks trivial, so it gets
-rewritten each time — and each rewrite loses a different detail. Two of them
-matter enough to be the reason this library exists.
+Interactive programs such as shells, REPLs, and multiplexers need a history
+store and a cursor. This library defines the filtering and restoration rules
+for that cursor.
 
 ### The filter is frozen when the walk begins
 
-Type `git ` and press ++arrow-up++ and you walk only the entries starting with
-`git `. Press it again and you keep walking those, even though the buffer now
-shows a recalled command that no longer resembles the original prefix. A
-cursor that re-derives its filter from the current buffer would jump to a
-different set of entries on the second press.
+Type `git ` and press ++arrow-up++ to walk only entries starting with `git `.
+The cursor keeps that filter while the buffer contains recalled commands.
 
 ### The in-progress input is preserved
 
-Walking forward past the newest match hands back exactly what you had typed,
-not an empty buffer. An accidental ++arrow-up++ is therefore free to undo — the
-half-written command is still there.
+Walking forward past the newest match restores the input that preceded the
+walk.
 
 ```lisp
 (history-kit:history-previous *history* "git ")  ; => "git commit -m wip"

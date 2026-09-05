@@ -61,9 +61,9 @@ the following are provided:
   password-bearing invocation)
 
 All of these need a tokeniser for a specific language, which would drag a
-parser dependency into a library whose whole point is having none. A host that
-needs them already has its own tokeniser; the last item is best handled by
-simply not calling `history-add`.
+parser dependency into a library whose purpose is to have none. A host that
+needs them already has its own tokeniser; the last item is best handled by not
+calling `history-add`.
 
 ### Rendering
 
@@ -88,12 +88,9 @@ These are not planned at any version:
 ## Stability
 
 As of **1.0.0**, this library follows [Semantic Versioning](https://semver.org/)
-and its public API is frozen. That commitment was earned rather than declared:
-the API grew through 0.2.0, 0.3.0 and 0.4.0 by addition only — every new
-capability (mode-aware navigation, wraparound, explicit case sensitivity on the
-cursor, `history-dedup`, `history-delete-if`, `history-search`'s `:limit`)
-landed as a new keyword or a new function, and no export has ever been renamed
-or removed.
+and its public API is frozen for the 1.x series. Changes in that series are
+additive: new keywords preserve existing defaults, and new capabilities use new
+functions or exports.
 
 ### What the promise covers
 

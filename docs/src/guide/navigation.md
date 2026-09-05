@@ -53,10 +53,8 @@ buffer currently shows without disturbing the walk:
 (history-kit:history-previous *history* "git commit") ; => "git status"
 ```
 
-This is the detail hand-rolled implementations most often lose. A cursor that
-re-derived its filter from the current buffer would, on the second press, start
-matching against `git commit` and jump to a different set of entries — or, more
-commonly, to none at all.
+The cursor keeps using the original filter. Re-deriving it from the current
+buffer would change the candidate set on the second press.
 
 ### Matching rules
 
@@ -76,8 +74,7 @@ The filter is matched **line-prefix** under **smartcase**:
 (history-kit:history-previous *mixed* "Git")   ; => NIL
 ```
 
-An empty filter matches everything, which is why passing `""` walks the whole
-history.
+An empty filter matches every entry.
 
 ## Choosing a match mode
 
@@ -170,9 +167,7 @@ newest match ends the walk and returns the input preserved when it began:
 (history-kit:history-navigating-p *history*)     ; => NIL
 ```
 
-That last step is the second detail worth having: the half-written `git ` is
-still there, so an accidental ++arrow-up++ costs nothing to undo. Handing back
-an empty buffer instead — the usual shortcut — silently destroys work.
+The original `git ` input is restored when the walk ends.
 
 `history-next` returns `nil` when no walk is in progress.
 
@@ -220,9 +215,8 @@ surviving cursor would point at a different entry than the user last saw:
      buffer)))
 ```
 
-Both `history-previous` and `history-next` return `nil` to mean "nothing
-happened", which is why each is wrapped in `or ... buffer` — the buffer is left
-exactly as it was.
+Both functions return `nil` when the buffer should remain unchanged, so the
+handler falls back to `buffer`.
 
 ## State summary
 
