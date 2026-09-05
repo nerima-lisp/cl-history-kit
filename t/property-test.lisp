@@ -1,8 +1,6 @@
 ;;;; t/property-test.lisp
 ;;;;
-;;;; Property-based specs: instead of a handful of chosen examples, assert an
-;;;; invariant over many generated inputs and let cl-weave shrink any
-;;;; counterexample to a minimal failing value.
+;;;; Property-based specs over generated inputs.
 (in-package #:cl-history-kit/test)
 
 (describe "store invariants"
@@ -112,9 +110,7 @@
         (expect (history-navigating-p history) :to-be-truthy)))))
 
 (defparameter +fuzz-alphabet+ (format nil "abcXYZ019 -_/~%")
-  "A wider alphabet than +COMMAND-ALPHABET+ -- it includes newlines, so
-generated texts exercise the multi-line splitting in %MAP-LINES, not only the
-single-line case the small search alphabet collides into.")
+  "An alphabet including newlines for multi-line %MAP-LINES coverage.")
 
 (defun gen-fuzz-text (&key (min-length 0) (max-length 16))
   (gen-string :alphabet +fuzz-alphabet+ :min-length min-length :max-length max-length))

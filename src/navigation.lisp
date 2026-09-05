@@ -1,22 +1,5 @@
 ;;;; src/navigation.lisp
-;;;;
-;;;; The recall cursor -- what an Up/Down key pair drives.
-;;;;
-;;;; Three details separate this from "index into a list", and each is why the
-;;;; hosts that hand-rolled it kept getting it subtly wrong:
-;;;;
-;;;;   * The filter is frozen at the moment navigation begins.  Typing "git "
-;;;;     and pressing Up walks only the entries starting with "git ", and keeps
-;;;;     walking those even though the buffer now shows a recalled command that
-;;;;     no longer resembles the original prefix.
-;;;;   * The in-progress input is preserved as the origin.  Walking forward off
-;;;;     the newest match hands back exactly what the user had typed, rather
-;;;;     than an empty buffer -- so an accidental Up is free to undo.
-;;;;   * The match mode is frozen alongside the filter.  A plain Up/Down pair
-;;;;     wants :LINE-PREFIX, but a Ctrl-R-style incremental search wants
-;;;;     :CONTAINS over the same cursor mechanics -- HISTORY-SEARCH's matcher
-;;;;     dispatch (%HISTORY-MATCHER) is reused here rather than duplicated, so
-;;;;     the two never drift apart on what a mode means.
+
 (in-package #:history-kit)
 
 (defun %history-navigation-matches (history prefix matcher sensitive)
@@ -66,13 +49,7 @@
       (history-entry-text (aref matches 0)))))
 
 (defun %history-step-cached-match (history next wrap-target on-exhausted)
-  "Advance the cursor to NEXT if it lands inside the cached MATCHES vector.
-
-Otherwise, if wrapping is enabled, advance to WRAP-TARGET instead. Otherwise
-call ON-EXHAUSTED with no arguments and return its result -- the continuation
-that decides what \"no more matches this way\" means for the caller: stopping
-the walk for HISTORY-PREVIOUS, or restoring the preserved origin for
-HISTORY-NEXT."
+  "Advance to NEXT, wrap, or call ON-EXHAUSTED when no match remains."
   (declare (optimize (speed 3) (safety 1) (compilation-speed 0)))
   (let ((matches (%history-cursor-matches history)))
     (cond
@@ -94,11 +71,7 @@ HISTORY-NEXT."
     (wrap nil)
     case-sensitive
     (smartcase t))
-  "Step one match further back into HISTORY and return its text, or NIL.
-
-The first call freezes the input, matching policy, and matching candidates.
-Later calls index that cached candidate vector, making repeated navigation
-constant-time even for a large history."
+  "Step backward through the frozen matching candidates and return text."
   ((current-input string))
   (let ((cursor (%history-cursor history)))
     (if (minusp cursor) (%history-start-navigation

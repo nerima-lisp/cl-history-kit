@@ -1,8 +1,5 @@
 ;;;; t/helpers-matchers.lisp
-;;;;
-;;;; Domain-specific expectations and builders shared by every spec file, so
-;;;; the specs read in the vocabulary of the library ("records these texts",
-;;;; "finds these texts") instead of raw list-predicate soup.
+
 (in-package #:cl-history-kit/test)
 
 (defmatcher :to-record-texts (actual expected)
@@ -32,9 +29,8 @@ duplicate policy without restating the seeding loop."
     (dolist (text (reverse texts) history)
       (history-add history text))))
 
-;;; A deliberately small alphabet: short commands drawn from it collide often,
-;;; so duplicate handling, prefix matching, and capacity eviction are all
-;;; exercised by ordinary generated input rather than only by rare edge cases.
+;;; A small alphabet makes collisions common in generated inputs, exercising
+;;; duplicate handling, prefix matching, and capacity eviction.
 (defparameter +command-alphabet+ "abc -")
 
 (defun gen-command-text (&key (min-length 1) (max-length 8))

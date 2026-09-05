@@ -1,10 +1,5 @@
 ;;;; src/merge.lisp
-;;;;
-;;;; Combining two histories into one.  Unlike operations.lisp's other
-;;;; mutations, a merge has a second history's worth of entries to fold in
-;;;; against TARGET's own capacity and duplicate policy, which is enough
-;;;; shape of its own (a source-list-or-history normalizer, a capacity-bounded
-;;;; scan) to warrant living apart from the single-entry operations.
+
 (in-package #:history-kit)
 
 (defun %history-source-entries (source)

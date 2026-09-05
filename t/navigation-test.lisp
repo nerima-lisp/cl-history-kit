@@ -166,11 +166,8 @@
         :to-equal
         expected))))
 
-;;; WRAP, SMARTCASE and CASE-SENSITIVE are frozen into cursor slots typed
-;;; BOOLEAN -- the strict (MEMBER T NIL) -- but they are documented as
-;;; generalized booleans, as every other flag in the library is.  Nothing but
-;;; a walk that actually starts ever writes those slots, so these specs step
-;;; far enough to reach the write.
+;;; Navigation freezes these flags on the first walk, so these specs start a
+;;; walk before checking their stored values.
 (describe
   "ending a walk"
   (it

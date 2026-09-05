@@ -1,8 +1,5 @@
 ;;;; src/search.lisp
-;;;;
-;;;; Read-only queries over a store.  The four match modes share one dispatch
-;;;; table, so a mode is either supported everywhere a mode is accepted or
-;;;; nowhere -- there is no per-entry-point subset to keep in sync.
+
 (in-package #:history-kit)
 
 (defun %history-matcher (mode)

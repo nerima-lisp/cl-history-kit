@@ -1,10 +1,5 @@
 ;;;; src/store.lisp
-;;;;
-;;;; The store: a capacity-bounded, newest-first list of entries plus the
-;;;; transient cursor that navigation walks.  The struct is opaque -- its slots
-;;;; live behind a private %HISTORY- conc-name and callers reach them through
-;;;; the checked readers below -- so the cursor invariants in navigation.lisp
-;;;; cannot be broken from outside the library.
+
 (in-package #:history-kit)
 
 (defstruct (history

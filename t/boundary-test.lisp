@@ -1,11 +1,5 @@
 ;;;; t/boundary-test.lisp
-;;;;
-;;;; The boundary contract itself, swept across the whole public surface
-;;;; rather than spot-checked.  Every entry point is defined with
-;;;; DEFINE-CHECKED-FUNCTION (src/boundary.lisp) and documented as signalling
-;;;; a TYPE-ERROR for a wrong-typed argument; since 1.0.0 that is a frozen
-;;;; part of the API, so it is asserted here for each one in turn instead of
-;;;; being left to whichever spec file happened to think of it.
+
 (in-package #:cl-history-kit/test)
 
 (describe "the boundary contract"

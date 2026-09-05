@@ -1,8 +1,5 @@
 ;;;; src/entry.lisp
-;;;;
-;;;; The immutable entry value object.  An entry is created once, never
-;;;; mutated, and never shallow-copied: the store only ever conses and drops
-;;;; whole entries, so there is no copier and every slot is read-only.
+
 (in-package #:history-kit)
 
 (defstruct (history-entry

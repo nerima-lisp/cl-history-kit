@@ -1,9 +1,5 @@
 ;;;; src/operations.lisp
-;;;;
-;;;; Mutating store operations.  Each one leaves the store's two invariants
-;;;; intact: entries stay newest-first and within capacity, and any operation
-;;;; that shifts entry positions clears the navigation cursor rather than
-;;;; leaving it pointing at a different entry than the user last saw.
+
 (in-package #:history-kit)
 
 (defun %history-dedupe (entries)
