@@ -16,14 +16,14 @@
     ```nix
     {
       inputs.cl-history-kit = {
-        url = "github:nerima-lisp/cl-history-kit/v1.0.0";
+        url = "github:nerima-lisp/cl-history-kit/v1.1.0";
         inputs.nixpkgs.follows = "nixpkgs";
       };
     }
     ```
 
     The suffix is a Git ref, not a version range. Keep the complete, published
-    release tag to make builds reproducible; dropping `/v1.0.0` instead tracks
+    release tag to make builds reproducible; dropping `/v1.1.0` instead tracks
     the default branch.
 
     [Development](project/development.md#flake-outputs) lists every output the
@@ -191,6 +191,6 @@ triggers.
 ## Where to next
 
 - [Entries and the Store](guide/store.md) — capacity, duplicate policies, merging
-- [Search](guide/search.md) — the four modes and smartcase in detail
+- [Search](guide/search.md) — match modes, filters, fuzzy ranking, and smartcase
 - [Recall Navigation](guide/navigation.md) — the cursor semantics in full
 - [API Reference](reference/api.md) — every exported symbol

@@ -14,31 +14,55 @@ Loading and saving a history file is deliberately left to the host. The file
 format, its location, when to flush, and how to handle a concurrently-writing
 sibling process are all host policy, and every host answers them differently.
 
-What the library does provide is the piece that makes persistence easy to get
-right: `history-merge` preserves each entry's original timestamp and exit code,
-so loading a file does not restamp every entry with the load time.
+What the library does provide are the pieces that make persistence easy to get
+right. `history-entry-plist` and `history-entry-from-plist` convert an entry to
+and from a property list of strings, integers, and symbols, which prints
+readably. `history-merge` preserves each entry's original timestamp, exit code,
+and metadata, so loading a file does not restamp every entry with the load time.
+
+The pair below stores one plist per entry, oldest first. It reads the file with
+`read` rather than line by line, because the plist of a multi-line entry spans
+several lines:
 
 ```lisp
 (defun load-history (history path)
-  "Merge one-entry-per-line PATH into HISTORY, oldest first."
+  "Merge the plist records in the file at PATH into HISTORY."
   (with-open-file (stream path :if-does-not-exist nil)
     (when stream
       (let ((entries nil))
-        (loop for line = (read-line stream nil nil)
-              while line
-              do (when (plusp (length line))
-                   (push (history-kit:make-history-entry line) entries)))
+        (with-standard-io-syntax
+          (let ((*read-eval* nil))
+            (loop for plist = (read stream nil stream)
+                  until (eq plist stream)
+                  do (push (history-kit:history-entry-from-plist plist) entries))))
         ;; ENTRIES is now newest-first, which is what HISTORY-MERGE expects.
         (history-kit:history-merge history entries)))))
 
 (defun save-history (history path)
-  "Write HISTORY to PATH, one entry per line, oldest first."
+  "Write HISTORY to PATH, one plist per entry, oldest first."
   (with-open-file (stream path :direction :output
                                :if-exists :supersede
                                :if-does-not-exist :create)
-    (dolist (entry (reverse (history-kit:history-entries history)))
-      (write-line (history-kit:history-entry-text entry) stream))))
+    (with-standard-io-syntax
+      ;; WITH-STANDARD-IO-SYNTAX turns *PRINT-READABLY* on, which makes some
+      ;; implementations write base strings in a non-portable syntax.
+      (let ((*print-readably* nil))
+        (dolist (entry (reverse (history-kit:history-entries history)))
+          (prin1 (history-kit:history-entry-plist entry) stream)
+          (terpri stream))))))
 ```
+
+Both functions use standard I/O syntax, so a non-keyword `:origin` symbol is
+printed and read relative to the same package. Binding `*read-eval*` to `nil`
+makes a `#.` form in the file signal `reader-error` instead of running code at
+read time. The sketch still trusts the file to be well formed. A truncated last
+record makes `read` signal `end-of-file`. A record with a wrong-typed value
+makes `history-entry-from-plist` signal `type-error`, and a record that is not
+an even-length list makes it signal an `error`. A host loading a file that
+another process or an older version may have written should handle those
+conditions and skip or report the bad record instead of abandoning the whole
+load. A record written before the host stored metadata, such as
+`(:text "ls" :timestamp 3900000000)`, loads with `nil` metadata.
 
 A future release may add a persistence layer if the hosts converge on a format.
 
@@ -68,16 +92,13 @@ calling `history-add`.
 ### Rendering
 
 Interactive search UI, ghost-text autosuggestion, and pagination of results are
-presentation concerns. `history-search` and `history-entry-line-suffix` supply
-the data a renderer needs; drawing it is out of scope.
+presentation concerns. `history-search`, `history-fuzzy-search`, and
+`history-entry-line-suffix` supply the data a renderer needs; drawing it is out of scope.
 
 ## Non-goals
 
 These are not planned at any version:
 
-- **Fuzzy matching.** The four modes cover prefix, exact, substring, and
-  per-line matching. Fuzzy scoring is a ranking problem with no single right
-  answer, and a host that wants it can rank `history-entries` itself.
 - **Concurrency control.** A store is a plain mutable structure with no
   locking. Hosts that share one across threads should serialise access
   themselves, which is cheaper than paying for a lock on every keystroke in the
@@ -91,6 +112,13 @@ As of **1.0.0**, this library follows [Semantic Versioning](https://semver.org/)
 and its public API is frozen for the 1.x series. Changes in that series are
 additive: new keywords preserve existing defaults, and new capabilities use new
 functions or exports.
+
+**1.1.0** is such an additive release. It adds optional entry metadata, the
+plist conversion functions, allocation-free access (`history-entry-at`,
+`history-newest`, `map-history`), a `filter` keyword on `history-search`, and
+the `:fuzzy` mode with `history-fuzzy-search` and `history-entry-fuzzy-score`.
+Code written against 1.0.0 runs unchanged: every new keyword defaults to `nil`,
+which reproduces the 1.0.0 behaviour.
 
 ### What the promise covers
 

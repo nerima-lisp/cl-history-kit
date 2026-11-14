@@ -1,9 +1,10 @@
 # cl-history-kit
 
 `cl-history-kit` is a **dependency-free command-history library for Common
-Lisp**. It provides a capacity-bounded store of recorded input lines, four
-search modes with smartcase, and the prefix-filtered recall cursor that an
-Up/Down key pair drives.
+Lisp**. It provides a capacity-bounded store of recorded input lines with
+optional per-entry metadata, prefix, substring, per-line, and fuzzy search with
+smartcase, and the prefix-filtered recall cursor that an Up/Down key pair
+drives.
 
 Everything is portable Common Lisp with no runtime dependencies; only the test
 system uses [cl-weave](https://github.com/nerima-lisp/cl-weave).
@@ -78,7 +79,7 @@ walk.
   reached through checked readers, so the navigation cursor's invariants cannot
   be broken from outside the library.
 - **One definition of "matches".** Search and navigation funnel through the same
-  four text predicates, so case sensitivity and smartcase cannot drift apart
+  text predicates, so case sensitivity and smartcase cannot drift apart
   between them.
 - **Automatic navigation reset.** Any operation that shifts entry positions
   ends an in-progress walk, rather than leaving a cursor pointing at a different

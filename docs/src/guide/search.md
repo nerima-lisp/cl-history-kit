@@ -2,7 +2,7 @@
 
 ```lisp
 (history-kit:history-search history query
-  &key (mode :prefix) case-sensitive (smartcase t) limit)
+  &key (mode :prefix) case-sensitive (smartcase t) limit filter)
 ```
 
 Returns the matching entries, newest first, as a fresh list.
@@ -15,6 +15,7 @@ Returns the matching entries, newest first, as a fresh list.
 | `:exact` | the entry text equals the query |
 | `:contains` | the query occurs anywhere in the entry text |
 | `:line-prefix` | **any** line of a multi-line entry starts with the query |
+| `:fuzzy` | the query's characters appear in the entry text in order, not necessarily adjacent |
 
 ```lisp
 (defparameter *history*
@@ -35,6 +36,10 @@ Returns the matching entries, newest first, as a fresh list.
  (history-kit:history-search *history* "commit" :mode :contains))
 ;; => ("git commit")
 ```
+
+`history-search` with `:fuzzy` returns matches newest first like every other
+mode. To rank them by match quality, use
+[`history-fuzzy-search`](#fuzzy-search).
 
 The empty query matches every entry; a query that matches nothing returns
 `nil`. An unknown mode signals the error from `ecase`.
@@ -100,6 +105,11 @@ precision.
     ;; => ("git push" "Git log" "git commit")
     ```
 
+Case-insensitive `:contains` and `:fuzzy` matching compares two ASCII
+characters by character-code arithmetic and passes any other pair to
+`char-equal`. The results are identical to comparing every pair with
+`char-equal`.
+
 ## Limiting results
 
 `limit`, when non-`nil`, caps the result to at most that many of the newest
@@ -114,13 +124,35 @@ matches:
 The default, `nil`, returns every match. `limit` must be a non-negative
 integer or `nil`; anything else signals a `type-error`.
 
+## Filtering results
+
+`filter` is a predicate called with each `history-entry`. An entry is returned
+only when it matches `mode` and `filter` returns true. Entries that `filter`
+rejects do not count toward `limit`, so `:limit 1` still finds the newest entry
+that passes both tests.
+
+The predicate usually reads [entry metadata](store.md#entry-metadata). This
+autosuggestion source prefers a command recorded in the current directory and
+falls back to the whole history:
+
+```lisp
+(defun suggestion-source (history input cwd)
+  "Return the entry to suggest from for INPUT, preferring CWD."
+  (flet ((newest (&rest keys)
+           (first (apply #'history-kit:history-search history input
+                         :mode :line-prefix :limit 1 keys))))
+    (or (newest :filter (lambda (entry)
+                          (equal (history-kit:history-entry-cwd entry) cwd)))
+        (newest))))
+```
+
 ## Matching a single entry
 
 ```lisp
 (history-kit:history-entry-match-p entry query &key (mode :prefix) case-sensitive)
 ```
 
-The same four modes, applied to one entry, returning `t` or `nil`. There is no
+The same modes, applied to one entry, returning `t` or `nil`. There is no
 `smartcase` option here: this is the primitive, so the caller decides
 sensitivity outright.
 
@@ -131,6 +163,38 @@ sensitivity outright.
         (history-kit:history-entry-match-p entry "git" :mode :exact)))
 ;; => (T T NIL)
 ```
+
+## Fuzzy search
+
+```lisp
+(history-kit:history-fuzzy-search history query
+  &key filter limit case-sensitive (smartcase t))
+(history-kit:history-entry-fuzzy-score entry query &key case-sensitive)
+```
+
+`history-fuzzy-search` is meant for a ++ctrl+r++ picker. It keeps the entries
+that `:fuzzy` matches and orders them by `history-entry-fuzzy-score`, highest
+first. Entries with equal scores stay newest first. `limit` applies after
+ranking, so `:limit 10` returns the ten best matches rather than the ten newest.
+`filter` and smartcase behave as in `history-search`.
+
+```lisp
+(let ((history (history-kit:make-history)))
+  (dolist (text '("git status" "gist show" "grep main"))
+    (history-kit:history-add history text))
+  (history-kit:history-entry-texts
+   (history-kit:history-fuzzy-search history "gst")))
+;; => "git status" and "gist show", best score first;
+;;    "grep main" has no "s" after its "g", so it does not match
+```
+
+`history-entry-fuzzy-score` returns `nil` when the query is not a subsequence
+of the entry text, and an integer otherwise. The score rises for runs of
+consecutive matched characters and for matches at a word boundary: the start of
+the text, or the character after a space, `/`, `-`, `_`, `.`, or newline. It falls
+for each gap between matched characters. The scorer makes one greedy pass, so
+it does not always find the best possible alignment. The exact values are not
+part of the API; use a score only to compare entries against the same query.
 
 ## Autosuggestion
 

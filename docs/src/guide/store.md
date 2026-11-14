@@ -7,7 +7,8 @@ copied on construction, and there is no copier. The store only ever conses and
 drops whole entries, so nothing ever needs to mutate one.
 
 ```lisp
-(history-kit:make-history-entry text &key timestamp exit-code)
+(history-kit:make-history-entry text
+  &key timestamp exit-code cwd duration-ms origin session)
 ```
 
 | Slot | Type | Meaning |
@@ -15,6 +16,7 @@ drops whole entries, so nothing ever needs to mutate one.
 | `text` | `string` | The recorded input |
 | `timestamp` | `integer` | Universal time; defaults to now |
 | `exit-code` | `integer` or `nil` | Exit status of the command it ran |
+| `cwd`, `duration-ms`, `origin`, `session` | see [Entry metadata](#entry-metadata) | Optional context; `nil` by default |
 
 `exit-code` is `nil` when the host tracks no exit status — a bare input prompt,
 say — or has not produced one yet.
@@ -48,6 +50,42 @@ you usually want after a search:
 (history-kit:history-entry-texts
  (history-kit:history-search *history* "git"))
 ```
+
+## Entry metadata
+
+Besides the exit code, an entry can carry four optional slots of context. Each
+defaults to `nil`, so a host that records none of them pays nothing for them.
+
+| Slot | Type | Reader | Meaning |
+| --- | --- | --- | --- |
+| `cwd` | `string` or `nil` | `history-entry-cwd` | Working directory the command ran in |
+| `duration-ms` | `(integer 0 *)` or `nil` | `history-entry-duration-ms` | Run time in milliseconds |
+| `origin` | `symbol` or `nil` | `history-entry-origin` | Where the text came from |
+| `session` | `string` or `nil` | `history-entry-session` | Host-defined session identifier |
+
+`cwd` and `session` are copied on construction, and their readers return fresh
+strings, as `history-entry-text` does.
+
+`history-add` accepts the same keywords and passes them through:
+
+```lisp
+(history-kit:history-add *history* "make test"
+                         :exit-code 0
+                         :cwd "/src/project"
+                         :duration-ms 5120
+                         :origin :typed
+                         :session "tty1")
+```
+
+`origin` accepts any symbol. Typical values are `:typed`, `:proposal`,
+`:agent`, and `:ai`, but the library keeps whatever symbol it receives,
+including one it has never seen. A history file written by a newer host can
+therefore be loaded without losing information. Deciding what an unfamiliar
+origin means, for example whether to offer it in autosuggestion, is host
+policy.
+
+The metadata is what a `filter` predicate usually inspects; see
+[Filtering results](search.md#filtering-results).
 
 ## Creating a store
 
@@ -127,10 +165,47 @@ corrupt the store:
 The entries themselves are shared rather than deep-copied, which is safe
 precisely because they are immutable.
 
+## Allocation-free access
+
+`history-entries` conses a fresh list of every entry on each call. For work that
+runs on every keystroke, read entries in place instead:
+
+```lisp
+(history-kit:history-newest history)           ; newest entry, or NIL
+(history-kit:history-entry-at history index)   ; 0 = newest; NIL past the end
+(history-kit:map-history function history &key filter limit)
+```
+
+`history-entry-at` and `history-newest` do not allocate. `map-history` calls
+`function` on each entry, newest first, skips entries for which `filter`
+returns false, and stops after `limit` calls. It returns `nil`; leave early with
+`return-from` or `block`:
+
+```lisp
+(defun last-failure-in (history cwd)
+  "Return the newest failed command recorded in CWD, or NIL."
+  (history-kit:map-history
+   (lambda (entry)
+     (return-from last-failure-in (history-kit:history-entry-text entry)))
+   history
+   :filter (lambda (entry)
+             (and (equal (history-kit:history-entry-cwd entry) cwd)
+                  (let ((code (history-kit:history-entry-exit-code entry)))
+                    (and code (plusp code)))))))
+```
+
+!!! warning "Do not mutate during a walk"
+
+    If `function` or `filter` mutates the history being walked (`history-add`,
+    a delete that removes entries, a merge, `history-clear`), `map-history`
+    signals an error.
+    Collect what to change, then change it after `map-history` returns.
+
 ## Recording
 
 ```lisp
-(history-kit:history-add history text &key exit-code timestamp)
+(history-kit:history-add history text
+  &key exit-code timestamp cwd duration-ms origin session)
 ```
 
 Returns **two values**: the store and the entry just recorded.
@@ -143,7 +218,12 @@ Returns **two values**: the store and the entry just recorded.
 ```
 
 `timestamp` defaults to the current universal time. Pass it explicitly to
-replay a persisted entry without restamping it.
+replay a persisted entry without restamping it. The metadata keywords are
+described under [Entry metadata](#entry-metadata).
+
+Under the `:remove` policy, re-recording a stored text replaces the older entry
+as a whole. The surviving entry carries the new call's metadata, so a command
+re-run in another directory reports the newer `cwd`.
 
 !!! note "Recording resets navigation"
 
@@ -212,6 +292,9 @@ store, or from disk, without waiting for each entry to be re-recorded:
 ;; => 1   -- the older "a" is gone; ("a" "b") remains
 ```
 
+`history-dedup` and `history-delete-if` leave the metadata of surviving entries
+untouched.
+
 ## Merging
 
 ```lisp
@@ -220,7 +303,7 @@ store, or from disk, without waiting for each entry to be re-recorded:
 
 `source` is a history or a plain newest-first list of entries. Entries are
 merged in order, subject to `target`'s capacity and duplicate policy, and each
-keeps its **original timestamp and exit code**:
+keeps its **original timestamp, exit code, and metadata**:
 
 ```lisp
 (let ((target (history-kit:make-history)))
@@ -238,3 +321,38 @@ arrive with the times they were originally recorded, not the time the file was
 read.
 
 A `source` that is neither a history nor a list signals a `type-error`.
+
+## Serializing entries
+
+The library does no file I/O, but it converts an entry to and from a property
+list so a host can choose its own storage format:
+
+```lisp
+(history-kit:history-entry-plist entry)    ; => fresh plist
+(history-kit:history-entry-from-plist plist) ; => entry
+```
+
+`history-entry-plist` always includes `:text` and `:timestamp`, and includes
+`:exit-code`, `:cwd`, `:duration-ms`, `:origin`, and `:session` only when they
+are non-`nil`:
+
+```lisp
+(history-kit:history-entry-plist
+ (history-kit:make-history-entry "ls" :timestamp 3900000000 :cwd "/tmp"))
+;; => (:TEXT "ls" :TIMESTAMP 3900000000 :CWD "/tmp")
+```
+
+`history-entry-from-plist` reverses it under rules chosen for reading old or
+foreign records:
+
+- `:text` is required.
+- A missing `:timestamp` becomes `0`; it is never replaced with the current
+  time.
+- Every metadata key is optional. A record written before the host stored
+  metadata reads back with `nil` metadata.
+- Unknown keys are ignored, and an unknown `:origin` symbol is kept.
+- A value of the wrong type, a missing `:text`, or a non-list argument signals
+  `type-error`. An odd-length or circular list signals `simple-error`.
+
+[Scope and Non-Goals](../project/scope.md#persistence) shows a load and save
+pair built on these two functions.

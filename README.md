@@ -5,8 +5,9 @@
 [![Documentation](https://img.shields.io/badge/docs-MkDocs%20Material-0a7a5a)](https://nerima-lisp.github.io/cl-history-kit/)
 
 `cl-history-kit` is a dependency-free command-history library for SBCL: a
-capacity-bounded store of recorded input lines, four search modes with
-smartcase, and a prefix-filtered recall cursor for Up/Down key handling. The
+capacity-bounded store of recorded input lines with optional per-entry
+metadata, prefix, substring, per-line, and fuzzy search with smartcase, and a
+prefix-filtered recall cursor for Up/Down key handling. The
 cursor keeps its filter for the whole walk and restores the original input when
 walking forward past the newest match.
 
@@ -32,12 +33,34 @@ The source for that site lives in [docs/src/](docs/src/).
 (history-kit:history-next *history*)             ; => "git "
 ```
 
+### Metadata and fuzzy search
+
+```lisp
+;; Optional context recorded with each entry; every key defaults to NIL.
+(history-kit:history-add *history* "make test"
+                         :exit-code 0 :cwd "/src/app"
+                         :duration-ms 5120 :origin :typed :session "tty1")
+
+;; Autosuggest from the current directory first.
+(history-kit:history-search *history* "make" :mode :line-prefix :limit 1
+                            :filter (lambda (entry)
+                                      (equal (history-kit:history-entry-cwd entry)
+                                             "/src/app")))
+
+;; Ctrl-R: subsequence matches ranked by score, best first.
+(history-kit:history-fuzzy-search *history* "gcm" :limit 10)
+
+;; Walk entries newest first without consing a snapshot list.
+(history-kit:map-history (lambda (entry) (print (history-kit:history-entry-text entry)))
+                         *history* :limit 3)
+```
+
 ## Install
 
 ```nix
 # flake.nix
 inputs.cl-history-kit = {
-  url = "github:nerima-lisp/cl-history-kit/v1.0.0";
+  url = "github:nerima-lisp/cl-history-kit/v1.1.0";
   inputs.nixpkgs.follows = "nixpkgs";
 };
 ```
@@ -52,6 +75,7 @@ the test system needs `cl-weave`.
 ## Documentation
 
 - [Getting Started](https://nerima-lisp.github.io/cl-history-kit/getting-started/)
+- [Search](https://nerima-lisp.github.io/cl-history-kit/guide/search/)
 - [Recall Navigation](https://nerima-lisp.github.io/cl-history-kit/guide/navigation/)
   — the frozen filter, wraparound, and wiring the cursor to keys
 - [API Reference](https://nerima-lisp.github.io/cl-history-kit/reference/api/)
@@ -63,7 +87,7 @@ the test system needs `cl-weave`.
 ```sh
 nix develop          # SBCL with CL_SOURCE_REGISTRY already set
 nix run .#test       # run the test suite
-nix run .#benchmark  # measure lookup, navigation, bounded merge, and :KEEP recording throughput
+nix run .#benchmark  # measure lookup, navigation, merge, and recording; then a 100k-entry history
 nix flake check      # packaged system + tests + coverage + formatting + docs
 nix fmt              # format Nix sources (treefmt)
 ```
@@ -76,8 +100,11 @@ Nix, make both `cl-history-kit` and `cl-weave` visible to ASDF.
 navigation, a merge into a full bounded history, and recording into a full
 `:keep` history. The usual `:remove` policy uses an internal text index, so a
 new command does not scan retained entries; re-recording an existing command
-does compact the ring in place. Treat the output as a same-machine regression
-signal, not a cross-machine ranking.
+does compact the ring in place. A second section builds a 100,000-entry
+history and reports throughput and bytes consed per operation for a
+`history-entries` snapshot, a full scan over it, autosuggest prefix lookups,
+and `:contains` scans. Treat the output as a same-machine regression signal,
+not a cross-machine ranking.
 
 ## Contributing
 

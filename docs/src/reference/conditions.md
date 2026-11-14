@@ -31,6 +31,20 @@ nor a list, and for a list element that is not an entry:
 ;; => TYPE-ERROR
 ```
 
+`history-entry-from-plist` signals a `type-error` when its argument is not a
+list, when `:text` is missing, or when a value has the wrong type, for example
+a string `:duration-ms`. A list of odd length, or a circular one, signals a
+`simple-error`.
+
+## Mutating a history during `map-history`
+
+`map-history` signals a `simple-error` when the history it is walking is
+mutated during the walk, for example by calling `history-add` from inside the
+mapped function or the filter. It compares the history's revision before
+reading each entry and once more after the last one, so a mutation made while
+visiting the final entry is reported too. A walk that leaves through a
+non-local exit skips the final comparison. Finish the walk first, then mutate.
+
 ## Unknown search modes
 
 The mode dispatch is an `ecase`, so an unrecognised mode signals a
@@ -38,8 +52,8 @@ The mode dispatch is an `ecase`, so an unrecognised mode signals a
 silently falling back to a default:
 
 ```lisp
-(history-kit:history-search *history* "git" :mode :fuzzy)
-;; => error: :FUZZY fell through ECASE expression
+(history-kit:history-search *history* "git" :mode :no-such-mode)
+;; => error: :NO-SUCH-MODE fell through ECASE expression
 ```
 
 ## What is *not* an error

@@ -42,7 +42,7 @@ If you prefer a local SBCL, ensure `cl-history-kit` and (for the tests)
 | `checks.<system>.formatting` | The treefmt (nixfmt) gate |
 | `checks.<system>.docs` | Asserts the built docs site is non-empty |
 | `apps.<system>.test` | `nix run .#test` — the suite on its own |
-| `apps.<system>.benchmark` | `nix run .#benchmark` — lookup, navigation, merge, and `:keep` recording throughput |
+| `apps.<system>.benchmark` | `nix run .#benchmark` — lookup, navigation, merge, and `:keep` recording throughput, plus a 100,000-entry history section |
 
 ## Running the tests
 
@@ -129,8 +129,17 @@ prefix lookup, cached `history-previous` navigation, a merge into a full
 bounded history, and recording into a full `:keep` history. The default
 `:remove` policy keeps a text index for new recordings; its duplicate path is
 separately protected by unit tests because it intentionally compacts retained
-entries. The benchmark is a repeatable regression signal, not a claim of an
-absolute result across different machines or SBCL builds.
+entries.
+
+A second section builds a 100,000-entry history and reports, for each
+operation, its throughput and bytes consed per operation: taking a snapshot
+with `history-entries`, a full scan over that snapshot, `history-search`
+`:prefix :limit 1` autosuggest lookups that hit the oldest and the newest
+match, and `:contains` scans (case-insensitive, case-sensitive, and with no
+match). The bytes-per-operation lines show which read paths allocate.
+
+The benchmark is a repeatable regression signal, not a claim of an absolute
+result across different machines or SBCL builds.
 
 ```text
 src/
@@ -141,7 +150,7 @@ src/
   store.lisp             the bounded store and its checked readers
   operations.lisp        add, clear, delete, delete-if, dedup
   merge.lisp             combining a second history or entry list into one
-  search.lisp            the four search modes and the autosuggestion suffix
+  search.lisp            search modes, fuzzy ranking, and the autosuggestion suffix
   navigation.lisp        the recall cursor
 t/
   package.lisp           the test package and the RUN-TESTS entry point

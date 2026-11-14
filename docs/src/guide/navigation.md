@@ -78,8 +78,10 @@ An empty filter matches every entry.
 
 ## Choosing a match mode
 
-`history-previous` accepts the same four modes as [`history-search`](search.md#modes)
-through `:mode`, defaulting to `:line-prefix` for a plain Up/Down key pair.
+`history-previous` accepts the same modes as [`history-search`](search.md#modes),
+including `:fuzzy`, through `:mode`, defaulting to `:line-prefix` for a plain
+Up/Down key pair. A `:fuzzy` walk visits matches newest first; it does not rank
+them the way [`history-fuzzy-search`](search.md#fuzzy-search) does.
 Like `current-input`, `mode` matters only on the first call of a walk:
 
 ```lisp
