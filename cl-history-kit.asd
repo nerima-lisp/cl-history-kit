@@ -56,6 +56,7 @@ so stepping forward past the newest match restores exactly what the user had typ
                (:file "operations-test")
                (:file "merge-test")
                (:file "search-test")
+               (:file "fuzzy-test")
                (:file "navigation-test")
                (:file "property-test"))
   :perform (test-op (operation component) (declare (ignore operation component)) (unless (funcall (symbol-function (find-symbol "RUN-TESTS" "CL-HISTORY-KIT/TEST"))) (error "cl-history-kit test suite failed"))))

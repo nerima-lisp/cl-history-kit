@@ -44,7 +44,7 @@
     (expect (history-search (searchable-history) "nope") :to-have-texts (list)))
 
   (it "rejects an unknown mode"
-    (signals error (history-search (searchable-history) "git" :mode :fuzzy))))
+    (signals error (history-search (searchable-history) "git" :mode :no-such-mode))))
 
 (describe "smartcase"
   (it "matches loosely for an all-lower-case query"
@@ -92,7 +92,7 @@
   (it "rejects a mode outside the shared mode contract"
     (signals error
              (history-entry-match-p (make-history-entry "git commit") "git"
-                                    :mode :fuzzy)))
+                                    :mode :no-such-mode)))
 
   (it "returns the suggestible remainder of a matching line"
     (let ((entry (make-history-entry "git commit")))
@@ -121,3 +121,39 @@
   (it "reads the suffix from any line of a multi-line entry"
     (let ((entry (make-history-entry (format nil "echo one~%echo two"))))
       (expect (history-entry-line-suffix entry "echo t") :to-equal "wo"))))
+
+(describe "filtering results"
+  (it-each ((:prefix "git" ("git commit"))
+            (:exact "git push" ())
+            (:contains "it" ("git commit"))
+            (:line-prefix "git" ("git commit"))
+            (:fuzzy "gt" ("git commit")))
+      "applies FILTER on top of ~S matching for ~S"
+      (mode query expected)
+    (let ((history (make-history)))
+      (history-add history "git commit" :exit-code 0)
+      (history-add history "ls" :exit-code 0)
+      (history-add history "git push" :exit-code 1)
+      (expect (history-search history query
+                              :mode mode
+                              :filter (lambda (entry)
+                                        (eql (history-entry-exit-code entry) 0)))
+              :to-have-texts expected)))
+
+  (it "does not count filtered-out entries toward LIMIT"
+    (let ((history (make-history)))
+      (dolist (text '("git a" "git b" "git c" "git d"))
+        (history-add history text :origin (if (find text '("git b" "git d") :test #'string=)
+                                               :typed
+                                               :agent)))
+      (expect (history-search history "git"
+                              :filter (lambda (entry) (eq (history-entry-origin entry) :typed))
+                              :limit 1)
+              :to-have-texts '("git d"))
+      (expect (history-search history "git"
+                              :filter (lambda (entry) (eq (history-entry-origin entry) :typed))
+                              :limit 5)
+              :to-have-texts '("git d" "git b"))))
+
+  (it "rejects a filter that is not a function designator"
+    (signals type-error (history-search (searchable-history) "git" :filter 42))))

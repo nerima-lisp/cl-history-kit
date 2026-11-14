@@ -41,6 +41,8 @@
    #:history-search
    #:history-entry-match-p
    #:history-entry-line-suffix
+   #:history-entry-fuzzy-score
+   #:history-fuzzy-search
    ;; Navigation
    #:history-previous
    #:history-next

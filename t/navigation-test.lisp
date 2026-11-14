@@ -104,7 +104,7 @@
       (expect (history-previous history "ls" :mode :exact) :to-equal "ls")))
 
   (it "rejects an unknown mode, same as HISTORY-SEARCH"
-    (signals error (history-previous (walkable-history) "git" :mode :fuzzy))))
+    (signals error (history-previous (walkable-history) "git" :mode :no-such-mode))))
 
 (describe "wraparound"
   (it "wraps to the newest match instead of returning NIL when stepping past the oldest"
