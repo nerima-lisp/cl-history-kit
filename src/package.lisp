@@ -26,6 +26,10 @@
    #:history-count
    #:history-empty-p
    #:history-duplicate-policy
+   ;; Access
+   #:history-entry-at
+   #:history-newest
+   #:map-history
    ;; Operations
    #:history-add
    #:history-clear
