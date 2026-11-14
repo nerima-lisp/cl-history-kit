@@ -10,7 +10,13 @@
    #:history-entry-text
    #:history-entry-timestamp
    #:history-entry-exit-code
+   #:history-entry-cwd
+   #:history-entry-duration-ms
+   #:history-entry-origin
+   #:history-entry-session
    #:history-entry-texts
+   #:history-entry-plist
+   #:history-entry-from-plist
    ;; Store
    #:history
    #:make-history

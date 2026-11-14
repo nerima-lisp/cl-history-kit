@@ -167,3 +167,55 @@
       (dolist (text (list "a" "b" "c" "a" "d" "b"))
         (history-add history text))
       (expect history :to-record-texts (list "b" "d")))))
+
+(describe
+  "recording entry metadata"
+  (it
+    "stores cwd, duration, origin, and session on the recorded entry"
+    (let ((history (make-history)))
+      (multiple-value-bind (returned entry)
+          (history-add history "make" :cwd "/src" :duration-ms 900
+                                      :origin :agent :session "s-1")
+        (expect (eq returned history) :to-be-truthy)
+        (expect (eq entry (first (history-entries history))) :to-be-truthy)
+        (expect (history-entry-cwd entry) :to-equal "/src")
+        (expect (history-entry-duration-ms entry) :to-be 900)
+        (expect (history-entry-origin entry) :to-be :agent)
+        (expect (history-entry-session entry) :to-equal "s-1"))))
+  (it
+    "rejects badly typed metadata without recording anything"
+    (let ((history (make-history)))
+      (signals type-error (history-add history "ls" :duration-ms -1))
+      (signals type-error (history-add history "ls" :origin "typed"))
+      (expect (history-empty-p history) :to-be-truthy)))
+  (it
+    "replaces the older entry and its metadata when :REMOVE re-records a text"
+    (let ((history (make-history)))
+      (history-add history "make" :timestamp 1 :exit-code 2 :cwd "/old"
+                                  :duration-ms 10 :origin :typed :session "s-1")
+      (history-add history "ls")
+      (history-add history "make" :timestamp 3)
+      (expect history :to-record-texts '("make" "ls"))
+      (let ((entry (first (history-entries history))))
+        (expect (history-entry-timestamp entry) :to-be 3)
+        (expect (history-entry-exit-code entry) :to-be nil)
+        (expect (history-entry-cwd entry) :to-be nil)
+        (expect (history-entry-duration-ms entry) :to-be nil)
+        (expect (history-entry-origin entry) :to-be nil)
+        (expect (history-entry-session entry) :to-be nil))))
+  (it
+    "keeps metadata on the entries HISTORY-DEDUP and HISTORY-DELETE-IF leave behind"
+    (let ((history (make-history :duplicate-policy :keep)))
+      (history-add history "ls" :cwd "/old")
+      (history-add history "bad" :exit-code 1)
+      (history-add history "ls" :cwd "/new" :duration-ms 5 :origin :ai :session "s-2")
+      (expect (history-dedup history) :to-be 1)
+      (expect (history-delete-if history
+                                 (lambda (entry) (eql (history-entry-exit-code entry) 1)))
+              :to-be 1)
+      (expect history :to-record-texts '("ls"))
+      (let ((entry (first (history-entries history))))
+        (expect (history-entry-cwd entry) :to-equal "/new")
+        (expect (history-entry-duration-ms entry) :to-be 5)
+        (expect (history-entry-origin entry) :to-be :ai)
+        (expect (history-entry-session entry) :to-equal "s-2")))))

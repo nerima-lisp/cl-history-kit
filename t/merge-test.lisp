@@ -85,3 +85,19 @@
 
   (it "rejects a source that is neither a history nor a list"
     (signals type-error (history-merge (make-history) :nope))))
+
+(describe "merging entry metadata"
+  (it-each ((:remove) (:keep))
+      "keeps cwd, duration, origin, and session under the ~S policy"
+      (policy)
+    (let ((target (history-of '("a") :duplicate-policy policy))
+          (source (make-history)))
+      (history-add source "build" :cwd "/src" :duration-ms 70
+                                  :origin :unheard-of :session "s-9")
+      (history-merge target source)
+      (let ((entry (first (history-entries target))))
+        (expect (history-entry-text entry) :to-equal "build")
+        (expect (history-entry-cwd entry) :to-equal "/src")
+        (expect (history-entry-duration-ms entry) :to-be 70)
+        (expect (history-entry-origin entry) :to-be :unheard-of)
+        (expect (history-entry-session entry) :to-equal "s-9")))))

@@ -75,13 +75,21 @@ revision after its composite operation completes."
 
 (define-typed-function
   history-add
-  (history history text &key exit-code (timestamp (get-universal-time)))
+  (history history text &key exit-code (timestamp (get-universal-time))
+           cwd duration-ms origin session)
   "Record TEXT as the newest entry of HISTORY.
 
 Honours the configured duplicate policy, drops the oldest entries past capacity,
-and resets navigation. Returns HISTORY and the entry just recorded."
+and resets navigation. Returns HISTORY and the entry just recorded.
+
+CWD, DURATION-MS, ORIGIN, and SESSION are stored on the new entry as
+MAKE-HISTORY-ENTRY describes.  Under the :REMOVE policy, re-recording a text
+replaces the older entry outright, metadata included: the newest record wins
+and nothing is carried over from the one it displaces."
   ()
-  (let ((entry (make-history-entry text :timestamp timestamp :exit-code exit-code)))
+  (let ((entry (make-history-entry text :timestamp timestamp :exit-code exit-code
+                                        :cwd cwd :duration-ms duration-ms
+                                        :origin origin :session session)))
     (%history-add-entry
       history
       entry
