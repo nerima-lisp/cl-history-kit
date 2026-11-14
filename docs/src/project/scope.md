@@ -64,6 +64,87 @@ conditions and skip or report the bad record instead of abandoning the whole
 load. A record written before the host stored metadata, such as
 `(:text "ls" :timestamp 3900000000)`, loads with `nil` metadata.
 
+#### Migrating from the line-based format
+
+Before 1.1.0, this page showed a pair whose saver wrote each entry's text with
+`write-line` and whose loader turned each non-empty line into an entry with
+`make-history-entry`, which stamped it with the load time. That line format and
+the plist format above are not compatible in either direction:
+
+- The plist loader reads an old file as Lisp data. The line `ls` reads as the
+  symbol `LS`, so `history-entry-from-plist` signals `type-error`, and a line
+  such as `a:b` makes `read` signal a reader error.
+- The old line loader reads a plist file as text. Each line, plist syntax
+  included, becomes the text of one entry, and the plist of a multi-line entry
+  becomes several entries.
+
+An old file holds one entry per non-empty line. The line format has no way to
+mark a line break inside an entry, so the old saver wrote a multi-line entry as
+several lines and the old loader read them back as separate entries. Because a
+plist record written by `save-history` starts with `(:TEXT `, a loader can
+accept old lines, plist records, and a file that mixes the two, such as an old
+file to which a host has since appended plist records:
+
+```lisp
+(defun read-history-file (path &key (legacy-timestamp 0))
+  "Return the entries stored at PATH, newest first, reading both formats.
+
+A line that begins with (:TEXT starts a plist record. Any other non-empty
+line is one entry in the old line-based format, recorded at LEGACY-TIMESTAMP."
+  (with-open-file (stream path :if-does-not-exist nil)
+    (when stream
+      (let ((entries nil))
+        (with-standard-io-syntax
+          (let ((*read-eval* nil))
+            (loop for line = (read-line stream nil nil)
+                  while line
+                  do (cond
+                       ((zerop (length line)))
+                       ((and (>= (length line) 7) (string= "(:TEXT " line :end2 7))
+                        ;; The record may continue on later lines, so read it
+                        ;; from this line followed by the rest of the file.
+                        (push (history-kit:history-entry-from-plist
+                               (read (make-concatenated-stream
+                                      (make-string-input-stream
+                                       (format nil "~A~%" line))
+                                      stream)))
+                              entries))
+                       (t
+                        (push (history-kit:make-history-entry
+                               line :timestamp legacy-timestamp)
+                              entries))))))
+        entries))))
+```
+
+`(history-kit:history-merge history (read-history-file path))` then replaces
+`load-history`. Like `load-history`, it lets the condition from a bad record
+end the whole read. The old format stored no timestamp. `legacy-timestamp`
+defaults to `0`, which marks the time as unknown; passing
+`(file-write-date path)` instead dates every old entry to the file's last
+write. An old entry whose text itself begins with `(:TEXT ` is handed to `read`
+as a plist record and does not load as text.
+
+To convert a file once instead, read it into a history large enough to hold
+every entry and write it back with `save-history`:
+
+```lisp
+(defun convert-history-file (old-path new-path &key (capacity 100000))
+  "Rewrite the history at OLD-PATH as plist records at NEW-PATH."
+  (let ((history (history-kit:make-history :capacity capacity)))
+    (history-kit:history-merge
+     history
+     (read-history-file old-path
+                        :legacy-timestamp (or (file-write-date old-path) 0)))
+    (save-history history new-path)))
+```
+
+Entries past `capacity` are dropped, oldest first. The conversion applies the
+history's duplicate policy, so under the default `:remove` a repeated command
+keeps only its newest copy, as the old loader's merge did; create the history
+with `:duplicate-policy :keep` to keep every copy. A host that already versions its own file format, for example with a
+header line, should keep using that version marker to choose a loader rather
+than relying on the `(:TEXT ` prefix.
+
 A future release may add a persistence layer if the hosts converge on a format.
 
 ### Terminal input
