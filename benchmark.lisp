@@ -107,10 +107,9 @@
               label operations elapsed (/ operations elapsed))
       (format t "~&~A: ~,1F bytes/operation~%" label (/ bytes operations)))))
 
-(defun benchmark-large-history (&key (entries 100000))
-  (let* ((start (get-internal-real-time))
-         (history (history-kit:make-history :capacity entries))
-         (newest-text (large-history-text (1- entries))))
+(defun make-large-history (entries)
+  "Return a history of ENTRIES distinct commands from LARGE-HISTORY-TEXT."
+  (let ((history (history-kit:make-history :capacity entries)))
     ;; HISTORY-MERGE takes its source newest first.
     (history-kit:history-merge
       history
@@ -119,6 +118,12 @@
                       (large-history-text index)
                       :timestamp (+ 3900000000 index)
                       :exit-code (if (zerop (mod index 13)) 1 0))))
+    history))
+
+(defun benchmark-large-history (&key (entries 100000))
+  (let* ((start (get-internal-real-time))
+         (history (make-large-history entries))
+         (newest-text (large-history-text (1- entries))))
     (format t "~&large history construction: ~D entries in ~,3F seconds~%"
             (history-kit:history-count history)
             (/ (- (get-internal-real-time) start) internal-time-units-per-second))
@@ -179,7 +184,60 @@
           (declare (ignore index))
           (history-kit:history-search history "gtcmfx" :mode :contains))))))
 
+(defmacro emit-repeated (label operations &body body)
+  "Report LABEL for evaluating BODY OPERATIONS times."
+  (let ((index (gensym "INDEX")))
+    `(emit-large-history-result
+       ,label
+       ,operations
+       (lambda ()
+         (dotimes (,index ,operations)
+           (declare (ignore ,index))
+           ,@body)))))
+
+(defun failed-entry-p (entry)
+  "True for the roughly 1 in 13 entries recorded with exit code 1."
+  (eql (history-kit:history-entry-exit-code entry) 1))
+
+(defun benchmark-new-api (&key (entries 100000))
+  (let* ((history (make-large-history entries))
+         (visited 0)
+         (count-visit (lambda (entry) (declare (ignore entry)) (incf visited))))
+    (format t "~&new API on a ~D-entry history~%" (history-kit:history-count history))
+    ;; "gco" matches the "git commit" and "git checkout" entries, a quarter of
+    ;; the history; "zqxj" matches nothing; the Japanese query matches the 2%
+    ;; of entries that echo a Japanese message.  "gCo" carries an upper-case
+    ;; letter, so smartcase makes it case-sensitive.
+    (emit-repeated "100k history-fuzzy-search :limit 10 (ASCII, many matches)" 20
+      (history-kit:history-fuzzy-search history "gco" :limit 10))
+    (emit-repeated "100k history-fuzzy-search :limit 10 (ASCII, no match)" 20
+      (history-kit:history-fuzzy-search history "zqxj" :limit 10))
+    (emit-repeated "100k history-fuzzy-search :limit 10 (Japanese, 2% match)" 20
+      (history-kit:history-fuzzy-search history "作業確認" :limit 10))
+    (emit-repeated "100k history-fuzzy-search :limit 10 (smartcase case-sensitive)" 20
+      (history-kit:history-fuzzy-search history "gCo" :limit 10))
+    (emit-repeated "100k history-search :fuzzy :limit 10 (unranked, ASCII, many matches)" 50000
+      (history-kit:history-search history "gco" :mode :fuzzy :limit 10))
+    (emit-repeated "100k history-search :line-prefix :limit 1 :filter (exit code 1)" 100000
+      (history-kit:history-search history "git" :mode :line-prefix :limit 1
+                                                :filter #'failed-entry-p))
+    (emit-repeated "100k history-search :contains :filter (exit code 1)" 20
+      (history-kit:history-search history "build" :mode :contains
+                                                  :filter #'failed-entry-p))
+    (emit-repeated "100k history-entry-at index 0" 10000000
+      (history-kit:history-entry-at history 0))
+    (emit-repeated "100k history-entry-at index 99999" 10000000
+      (history-kit:history-entry-at history (1- entries)))
+    (emit-repeated "100k history-newest" 10000000
+      (history-kit:history-newest history))
+    (emit-repeated "100k map-history full walk with a counting filter" 50
+      (history-kit:map-history count-visit history :filter #'failed-entry-p))
+    (emit-repeated "100k map-history :limit 1" 5000000
+      (history-kit:map-history count-visit history :limit 1))
+    visited))
+
 (progn
   (benchmark-hot-paths)
   (benchmark-large-history)
+  (benchmark-new-api)
   (uiop:quit 0))
